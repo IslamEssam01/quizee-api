@@ -3,7 +3,7 @@ from sqlalchemy import func, select
 
 import models
 from database import DBSession
-from schemas.user import UserCreate, UserPrivate
+from schemas.user import UserCreate, UserPrivate, UserPublic
 from utils.auth import hash_password
 from utils.error_messages import UserErrors
 
@@ -45,3 +45,17 @@ async def create_user(user: UserCreate, db: DBSession):
     await db.refresh(new_user)
 
     return new_user
+
+
+@router.get("/{user_id}", response_model=UserPublic)
+async def get_user(user_id: int, db: DBSession):
+    result = await db.execute(select(models.User).where(models.User.id == user_id))
+
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=UserErrors.USER_NOT_FOUND
+        )
+
+    return user
