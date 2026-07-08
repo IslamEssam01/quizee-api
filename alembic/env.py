@@ -5,6 +5,7 @@ from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+import models  # pyright: ignore[reportUnusedImport]
 from alembic import context
 from config import settings
 from database import Base
