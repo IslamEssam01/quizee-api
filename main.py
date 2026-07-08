@@ -1,6 +1,3 @@
-def main():
-    print("Hello from quizze-api!")
+from fastapi import FastAPI
 
-
-if __name__ == "__main__":
-    main()
+app = FastAPI()
