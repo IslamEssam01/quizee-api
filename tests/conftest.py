@@ -56,6 +56,7 @@ async def db_session(
         bind=test_engine,
         class_=AsyncSession,
         expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
     )
 
     async with test_async_session() as session:
