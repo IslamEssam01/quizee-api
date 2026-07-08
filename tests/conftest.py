@@ -79,3 +79,17 @@ async def client(db_session: AsyncSession):
         yield ac
 
     app.dependency_overrides.clear()
+
+
+async def create_test_user(
+    client: AsyncClient,
+    username: str = "test user",
+    email: str = "testuser@example.com",
+    password: str = "testpass1",
+):
+    response = await client.post(
+        "/api/users", json={"username": username, "email": email, "password": password}
+    )
+
+    assert response.status_code == 201, f"Failed to create user: {response.text}"
+    return response.json()
