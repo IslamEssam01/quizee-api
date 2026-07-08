@@ -1,1 +1,3 @@
-import models.user  # pyright: ignore[reportUnusedImport]
+from .user import User
+
+__all__ = ["User"]
