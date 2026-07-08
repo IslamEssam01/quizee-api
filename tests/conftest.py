@@ -18,13 +18,16 @@ os.environ["DB_URL"] = settings.test_db_url
 
 
 @pytest.fixture(scope="session")
-def anyio_backen():
+def anyio_backend():
     return "asyncio"
 
 
 @pytest.fixture(scope="session")
 def test_engine():
-    engine = create_async_engine(settings.test_db_url)
+    engine = create_async_engine(
+        settings.test_db_url,
+        poolclass=NullPool,
+    )
     return engine
 
 
@@ -50,7 +53,9 @@ async def db_session(
     trans = await conn.begin()
 
     test_async_session = async_sessionmaker(
-        bind_=test_engine, class_=AsyncSession, expire_on_commit=False, pool=NullPool
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
     )
 
     async with test_async_session() as session:
