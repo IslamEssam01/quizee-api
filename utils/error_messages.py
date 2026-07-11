@@ -6,3 +6,5 @@ class UserErrors:
 
 class AuthErrors:
     INCORRECT_EMAIL_OR_PASSWORD = "Incorrect email or password"
+    INVALID_TOKEN = "Invalid or expired token"
+    USER_NOT_FOUND = "User not found"
