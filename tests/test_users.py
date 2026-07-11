@@ -57,7 +57,7 @@ async def test_create_user_successfully(
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 @given(
     username=st.text(
-        min_size=1,
+        min_size=2,
         max_size=50,
         alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
     ),
@@ -81,7 +81,7 @@ async def test_create_duplicate_user(
 
     response = await client.post(
         "/api/users",
-        json={"username": username, "email": "different" + email, "password": password},
+        json={"username": username, "email": email[1:], "password": password},
     )
 
     assert response.status_code == 409
@@ -89,7 +89,7 @@ async def test_create_duplicate_user(
 
     response = await client.post(
         "/api/users",
-        json={"username": "different" + username, "email": email, "password": password},
+        json={"username": username[1:], "email": email, "password": password},
     )
 
     assert response.status_code == 409
