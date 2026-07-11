@@ -374,3 +374,45 @@ async def test_delete_user_successfully(
 
     assert response.status_code == 404
     assert response.json()["detail"] == UserErrors.USER_NOT_FOUND
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_get_current_user(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user = await create_test_user(client, username, email, password)
+    token = await login_user(client, email, password)
+
+    response = await client.get(
+        "/api/users/me",
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data.keys() == {"id", "username", "email"}
+    assert data["id"] == user["id"]
+    assert data["username"] == username
+    assert data["email"].lower() == email.lower()
