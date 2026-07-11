@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient
-from hypothesis import HealthCheck, assume, given, settings
+from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -293,3 +293,84 @@ async def test_update_user_successfully(
 
     assert data["username"] == new_username
     assert data["email"] == new_email
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=2,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_delete_user_unauthorized(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user1 = await create_test_user(client, username, email, password)
+    user2 = await create_test_user(client, username[1:], email[1:], password)
+
+    token2 = await login_user(client, user2["email"], password)
+
+    response = await client.delete(
+        f"/api/users/{user1["id"]}",
+        headers=auth_header(token2),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == UserErrors.NOT_AUTHORIZED_TO_DELETE_USER
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_delete_user_successfully(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user = await create_test_user(client, username, email, password)
+
+    token = await login_user(client, user["email"], password)
+
+    response = await client.delete(
+        f"/api/users/{user["id"]}",
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 204
+
+    response = await client.get(
+        f"/api/users/{user["id"]}",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == UserErrors.USER_NOT_FOUND

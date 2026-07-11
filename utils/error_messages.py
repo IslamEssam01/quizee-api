@@ -3,6 +3,7 @@ class UserErrors:
     DUPLICATE_EMAIL = "A user with this email already exists"
     USER_NOT_FOUND = "User not found"
     NOT_AUTHORIZED_TO_UPDATE_USER = "Not authorized to update this user"
+    NOT_AUTHORIZED_TO_DELETE_USER = "Not authorized to delete this user"
 
 
 class AuthErrors:
