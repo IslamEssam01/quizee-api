@@ -2,6 +2,7 @@ class UserErrors:
     DUPLICATE_USERNAME = "A user with this username already exists"
     DUPLICATE_EMAIL = "A user with this email already exists"
     USER_NOT_FOUND = "User not found"
+    NOT_AUTHORIZED_TO_UPDATE_USER = "Not authorized to update this user"
 
 
 class AuthErrors:
