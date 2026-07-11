@@ -93,3 +93,7 @@ async def create_test_user(
 
     assert response.status_code == 201, f"Failed to create user: {response.text}"
     return response.json()
+
+
+def auth_header(token: str):
+    return {"Authorization": f"Bearer {token}"}
