@@ -101,7 +101,7 @@ async def login_user(
     password: str = "testpass1",
 ):
     response = await client.post(
-        "/api/users/login", json={"email": email, "password": password}
+        "/api/auth/login", json={"email": email, "password": password}
     )
 
     assert response.status_code == 200, f"Failed to login user: {response.text}"

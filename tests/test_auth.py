@@ -43,7 +43,7 @@ async def test_login(
     user = await create_test_user(client, username, email, password)
 
     response = await client.post(
-        "/api/users/login", json={"email": email, "password": password}
+        "/api/auth/login", json={"email": email, "password": password}
     )
 
     assert response.status_code == 200
