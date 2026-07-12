@@ -13,6 +13,16 @@ router = APIRouter()
 @router.post("", response_model=UserPrivate, status_code=status.HTTP_201_CREATED)
 async def create_user(user: UserCreate, db: DBSession):
     result = await db.execute(
+        select(models.User).where(func.lower(models.User.email) == user.email.lower())
+    )
+
+    existing_email = result.scalars().first()
+    if existing_email:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail=UserErrors.DUPLICATE_EMAIL
+        )
+
+    result = await db.execute(
         select(models.User).where(
             func.lower(models.User.username) == user.username.lower()
         )
@@ -22,16 +32,6 @@ async def create_user(user: UserCreate, db: DBSession):
     if existing_username:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail=UserErrors.DUPLICATE_USERNAME
-        )
-
-    result = await db.execute(
-        select(models.User).where(func.lower(models.User.email) == user.email.lower())
-    )
-
-    existing_email = result.scalars().first()
-    if existing_email:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=UserErrors.DUPLICATE_EMAIL
         )
 
     new_user = models.User(
