@@ -10,9 +10,9 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
-from database import DBSession
-from tests.conftest import auth_header, create_test_user
+from tests.conftest import create_test_user
 from utils.auth import create_access_token, get_current_user, verify_access_token
+from utils.constants import REFRESH_TOKEN_COOKIE_KEY
 from utils.error_messages import AuthErrors
 
 
@@ -116,7 +116,7 @@ async def test_refresh_web_cookie(
         headers={"X-Client-Type": "web"},
     )
 
-    assert "refresh_token" in response.cookies
+    assert REFRESH_TOKEN_COOKIE_KEY in response.cookies
     response = await client.post(
         "/api/auth/refresh",
         headers={"X-Client-Type": "web"},
@@ -221,3 +221,109 @@ async def test_user_not_found(db_session: AsyncSession):
 
     assert exception_value.status_code == 401
     assert exception_value.detail == AuthErrors.USER_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_logout_without_logging_in(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    response = await client.post(
+        "/api/auth/logout",
+        headers={"X-Client-Type": "test"},
+    )
+
+    assert response.status_code == 204
+
+
+@pytest.mark.anyio
+async def test_logout_without_logging_in_web_cookie(
+    client: AsyncClient,
+    db_session: AsyncSession,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    response = await client.post(
+        "/api/auth/logout",
+        headers={"X-Client-Type": "web"},
+    )
+
+    assert response.status_code == 204
+    assert REFRESH_TOKEN_COOKIE_KEY not in response.cookies
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_logout(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    await create_test_user(client, username, email, password)
+
+    await client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": "test"},
+    )
+
+    response = await client.post("/api/auth/logout")
+
+    assert response.status_code == 204
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_logout_web_cookie(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    await create_test_user(client, username, email, password)
+
+    await client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": "web"},
+    )
+
+    response = await client.post("/api/auth/logout")
+
+    assert response.status_code == 204
+    assert REFRESH_TOKEN_COOKIE_KEY not in response.cookies

@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import models
 from config import settings
 from database import DBSession
+from utils.constants import REFRESH_TOKEN_COOKIE_KEY
 from utils.error_messages import AuthErrors
 
 password_hash = PasswordHash.recommended()
@@ -127,10 +128,16 @@ def issue_refresh_token(db: AsyncSession, user_id: int):
 
 def set_refresh_cookie(response: Response, token: str):
     response.set_cookie(
-        key="refresh_token",
+        key=REFRESH_TOKEN_COOKIE_KEY,
         value=token,
         httponly=True,
         secure=settings.env == "PRODUCTION",
         samesite="lax",
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
+    )
+
+
+def delete_refresh_cookie(response: Response):
+    response.delete_cookie(
+        key=REFRESH_TOKEN_COOKIE_KEY,
     )

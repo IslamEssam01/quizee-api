@@ -114,6 +114,36 @@ async def refresh_token(
     )
 
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    db: DBSession,
+    request_data: RefreshTokenRequest | None = None,
+    refresh_token_cookie: Annotated[str | None, Cookie(alias="refresh_token")] = None,
+    x_client_type: Annotated[str, Header()] = "web",
+):
+    refresh_token = (
+        refresh_token_cookie
+        if x_client_type == "web"
+        else (request_data.refresh_token if request_data else None)
+    )
+
+    if not refresh_token:
+        return
+
+    result = await db.execute(
+        select(models.RefreshToken).where(
+            models.RefreshToken.token_hash == hash_random_token(refresh_token)
+        )
+    )
+    refresh_token_db = result.scalars().first()
+
+    if not refresh_token_db:
+        return
+
+    await db.delete(refresh_token_db)
+    await db.commit()
+
+
 @router.post("/swagger-login", response_model=Token, include_in_schema=False)
 async def swagger_login(
     credentials: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBSession
