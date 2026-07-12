@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -9,7 +11,9 @@ class Settings(BaseSettings):
     frontend_url: str
     secret_key: SecretStr
     algorithm: str = "HS256"
+    env: Literal["DEVELOPMENT", "PRODUCTION"]
     access_token_expire_minutes: int = 30
+    refresh_token_expire_days: int = 30
 
 
 settings = Settings()  # Will be loaded from .env   # pyright: ignore[reportCallIssue]

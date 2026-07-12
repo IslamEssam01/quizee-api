@@ -49,7 +49,134 @@ async def test_login(
     assert response.status_code == 200
     data = response.json()
 
-    assert data.keys() == {"access_token", "token_type"}
+    assert data.keys() == {"access_token", "refresh_token", "token_type"}
+
+    token = data["access_token"]
+
+    user_id = verify_access_token(token)
+    assert user_id is not None
+    assert int(user_id) == user["id"]
+
+
+@pytest.mark.anyio
+async def test_invalid_refresh(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": "invalid token"},
+        headers={"X-Client-Type": "test"},
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == AuthErrors.INVALID_TOKEN
+
+
+@pytest.mark.anyio
+async def test_missing_refresh(
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/api/auth/refresh",
+        headers={"X-Client-Type": "test"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == AuthErrors.REFRESH_TOKEN_MISSING
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_refresh_web_cookie(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user = await create_test_user(client, username, email, password)
+
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": "web"},
+    )
+
+    assert "refresh_token" in response.cookies
+    response = await client.post(
+        "/api/auth/refresh",
+        headers={"X-Client-Type": "web"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data.keys() == {"access_token", "refresh_token", "token_type"}
+
+    token = data["access_token"]
+
+    user_id = verify_access_token(token)
+    assert user_id is not None
+    assert int(user_id) == user["id"]
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_refresh(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user = await create_test_user(client, username, email, password)
+
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": "test"},
+    )
+
+    data = response.json()
+    refresh_token = data["refresh_token"]
+
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+        headers={"X-Client-Type": "test"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data.keys() == {"access_token", "refresh_token", "token_type"}
 
     token = data["access_token"]
 
