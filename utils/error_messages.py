@@ -4,6 +4,7 @@ class UserErrors:
     USER_NOT_FOUND = "User not found"
     NOT_AUTHORIZED_TO_UPDATE_USER = "Not authorized to update this user"
     NOT_AUTHORIZED_TO_DELETE_USER = "Not authorized to delete this user"
+    INCORRECT_CURRENT_PASSWORD = "Incorrect password"
 
 
 class AuthErrors:

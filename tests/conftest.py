@@ -102,13 +102,16 @@ async def login_user(
     client: AsyncClient,
     email: str = "testuser@example.com",
     password: str = "testpass1",
+    client_type: str = "web",
 ):
     response = await client.post(
-        "/api/auth/login", json={"email": email, "password": password}
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": client_type},
     )
 
     assert response.status_code == 200, f"Failed to login user: {response.text}"
-    return response.json()["access_token"]
+    return response.json()["access_token"], response.json()["refresh_token"]
 
 
 def auth_header(token: str):
