@@ -15,6 +15,53 @@ from utils.error_messages import AuthErrors
 
 
 @pytest.mark.anyio
+async def test_login_incorrect_email(
+    client: AsyncClient,
+):
+    await create_test_user(client)
+
+    response = await client.post(
+        "/api/auth/login",
+        json={
+            "email": "notreal@example.com",
+            "password": "test pass",
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == AuthErrors.INCORRECT_EMAIL_OR_PASSWORD
+
+
+@pytest.mark.anyio
+@try_multiple_user_combs()
+async def test_login_incorrect_password(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    await create_test_user(client, username, email, password)
+
+    response = await client.post(
+        "/api/auth/login",
+        json={
+            "email": email,
+            "password": (
+                "wrong password"
+                if password != "wrong password"
+                else "really wrong password"
+            ),
+        },
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == AuthErrors.INCORRECT_EMAIL_OR_PASSWORD
+
+
+@pytest.mark.anyio
 @try_multiple_user_combs()
 async def test_login(
     client: AsyncClient,
