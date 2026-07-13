@@ -20,6 +20,9 @@ class RefreshToken(Base):
         DateTime(timezone=True),
         nullable=False,
     )
+    family_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    rotated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    revoked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
