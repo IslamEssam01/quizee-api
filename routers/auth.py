@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 import models
 from database import DBSession
@@ -75,32 +75,47 @@ async def refresh_token(
         )
 
     result = await db.execute(
-        select(models.RefreshToken).where(
-            models.RefreshToken.token_hash == hash_random_token(token)
-        )
+        select(models.RefreshToken)
+        .where(models.RefreshToken.token_hash == hash_random_token(token))
+        .with_for_update()
     )
 
     refresh_token_db = result.scalars().first()
 
-    if not refresh_token_db:
+    if not refresh_token_db or refresh_token_db.revoked_at:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=AuthErrors.INVALID_TOKEN,
         )
 
     if refresh_token_db.expires_at < datetime.now(UTC):
-        await db.delete(refresh_token_db)
+        refresh_token_db.revoked_at = datetime.now(UTC)
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=AuthErrors.INVALID_TOKEN,
         )
 
+    if refresh_token_db.rotated_at:
+        await db.execute(
+            update(models.RefreshToken)
+            .where(models.RefreshToken.family_id == refresh_token_db.family_id)
+            .values(revoked_at=datetime.now(UTC))
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=AuthErrors.INVALID_TOKEN,
+        )
+        # TODO: send an email to the user signaling there might be theft
+
     user_id = refresh_token_db.user_id
 
-    await db.delete(refresh_token_db)
+    refresh_token_db.rotated_at = datetime.now(UTC)
 
-    new_refresh_token = issue_refresh_token(db, refresh_token_db.user_id)
+    new_refresh_token = issue_refresh_token(
+        db, refresh_token_db.user_id, refresh_token_db.family_id
+    )
 
     await db.commit()
 
@@ -131,16 +146,21 @@ async def logout(
         return
 
     result = await db.execute(
-        select(models.RefreshToken).where(
-            models.RefreshToken.token_hash == hash_random_token(refresh_token)
-        )
+        select(models.RefreshToken)
+        .where(models.RefreshToken.token_hash == hash_random_token(refresh_token))
+        .with_for_update()
     )
     refresh_token_db = result.scalars().first()
 
     if not refresh_token_db:
         return
 
-    await db.delete(refresh_token_db)
+    await db.execute(
+        update(models.RefreshToken)
+        .where(models.RefreshToken.family_id == refresh_token_db.family_id)
+        .values(revoked_at=datetime.now(UTC))
+    )
+
     await db.commit()
 
 
