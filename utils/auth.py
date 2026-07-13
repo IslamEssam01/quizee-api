@@ -2,6 +2,7 @@ import hashlib
 import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Annotated
+from uuid import uuid4
 
 import jwt
 from fastapi import Depends, HTTPException, Response, status
@@ -112,7 +113,7 @@ async def get_current_user(
 CurrentUser = Annotated[models.User, Depends(get_current_user)]
 
 
-def issue_refresh_token(db: AsyncSession, user_id: int):
+def issue_refresh_token(db: AsyncSession, user_id: int, family_id: str | None = None):
     token = generate_random_token()
     db.add(
         models.RefreshToken(
@@ -120,6 +121,7 @@ def issue_refresh_token(db: AsyncSession, user_id: int):
             token_hash=hash_random_token(token),
             expires_at=datetime.now(UTC)
             + timedelta(days=settings.refresh_token_expire_days),
+            family_id=family_id if family_id else uuid4().hex,
         )
     )
 

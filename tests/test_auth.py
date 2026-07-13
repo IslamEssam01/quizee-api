@@ -186,6 +186,118 @@ async def test_refresh(
 
 
 @pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_refresh_rotation(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    await create_test_user(client, username, email, password)
+
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": "test"},
+    )
+
+    data = response.json()
+    refresh_token = data["refresh_token"]
+
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+        headers={"X-Client-Type": "test"},
+    )
+
+    # This token should be rotated and not accepted
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+        headers={"X-Client-Type": "test"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == AuthErrors.INVALID_TOKEN
+
+
+@pytest.mark.anyio
+@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
+@given(
+    username=st.text(
+        min_size=1,
+        max_size=50,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+    email=st.emails(),
+    password=st.text(
+        min_size=8,
+        max_size=200,
+        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
+    ),
+)
+async def test_refresh_resue_detection(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    await create_test_user(client, username, email, password)
+
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-Client-Type": "test"},
+    )
+
+    data = response.json()
+    refresh_token = data["refresh_token"]
+
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+        headers={"X-Client-Type": "test"},
+    )
+    data = response.json()
+    new_refresh_token = data["refresh_token"]
+
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": refresh_token},
+        headers={"X-Client-Type": "test"},
+    )
+
+    # Assert that all tokens from the same login session got revoked
+    response = await client.post(
+        "/api/auth/refresh",
+        json={"refresh_token": new_refresh_token},
+        headers={"X-Client-Type": "test"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == AuthErrors.INVALID_TOKEN
+
+
+@pytest.mark.anyio
 async def test_invalid_access_token(db_session: AsyncSession):
 
     with pytest.raises(HTTPException) as exc_info:
