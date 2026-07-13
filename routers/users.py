@@ -1,11 +1,21 @@
-from fastapi import APIRouter, HTTPException, status
-from sqlalchemy import func, select
+from datetime import UTC, datetime
+from typing import Annotated
+
+from fastapi import APIRouter, Cookie, Header, HTTPException, status
+from sqlalchemy import func, select, update
 
 import models
 from database import DBSession
-from schemas.user import UserCreate, UserPrivate, UserPublic, UserUpdate
-from utils.auth import CurrentUser, hash_password
+from schemas.user import (
+    ChangePasswordRequest,
+    UserCreate,
+    UserPrivate,
+    UserPublic,
+    UserUpdate,
+)
+from utils.auth import CurrentUser, hash_password, hash_random_token, verify_password
 from utils.error_messages import UserErrors
+from utils.success_messages import UserMessages
 
 router = APIRouter()
 
@@ -64,6 +74,40 @@ async def get_user(user_id: int, db: DBSession):
         )
 
     return user
+
+
+@router.patch("/me/password")
+async def update_current_user_password(
+    current_user: CurrentUser,
+    request_data: ChangePasswordRequest,
+    db: DBSession,
+    refresh_token_cookie: Annotated[str | None, Cookie(alias="refresh_token")] = None,
+    x_client_type: Annotated[str, Header()] = "web",
+):
+    if not verify_password(request_data.current_password, current_user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=UserErrors.INCORRECT_CURRENT_PASSWORD,
+        )
+
+    refresh_token = (
+        refresh_token_cookie if x_client_type == "web" else request_data.refresh_token
+    )
+
+    current_user.password_hash = hash_password(request_data.new_password)
+
+    if request_data.logout_all_sessions:
+        await db.execute(
+            update(models.RefreshToken)
+            .where(models.RefreshToken.user_id == current_user.id)
+            .where(
+                models.RefreshToken.token_hash != hash_random_token(refresh_token or "")
+            )
+            .values(revoked_at=datetime.now(UTC))
+        )
+    await db.commit()
+
+    return {"message": UserMessages.PASSWORD_UPDATED_SUCCESSFULLY}
 
 
 @router.patch("/{user_id}", response_model=UserPrivate)

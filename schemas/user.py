@@ -20,3 +20,10 @@ class UserPublic(BaseModel):
 
 class UserPrivate(UserPublic):
     email: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=200)
+    logout_all_sessions: bool = Field(default=False)
+    refresh_token: str | None = Field(default=None)
