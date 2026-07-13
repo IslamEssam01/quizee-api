@@ -4,33 +4,18 @@ from time import sleep
 import pytest
 from fastapi import HTTPException
 from httpx import AsyncClient
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
-from tests.conftest import create_test_user
+from tests.conftest import create_test_user, try_multiple_user_combs
 from utils.auth import create_access_token, get_current_user, verify_access_token
 from utils.constants import REFRESH_TOKEN_COOKIE_KEY
 from utils.error_messages import AuthErrors
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_login(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -85,20 +70,7 @@ async def test_missing_refresh(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_refresh_web_cookie(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -134,20 +106,7 @@ async def test_refresh_web_cookie(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_refresh(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -186,20 +145,7 @@ async def test_refresh(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_refresh_rotation(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -238,20 +184,7 @@ async def test_refresh_rotation(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_refresh_resue_detection(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -367,20 +300,7 @@ async def test_logout_without_logging_in_web_cookie(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_logout(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -404,20 +324,7 @@ async def test_logout(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_logout_web_cookie(
     client: AsyncClient,
     db_session: AsyncSession,

@@ -1,12 +1,15 @@
 import pytest
 from httpx import AsyncClient
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
-from tests.conftest import auth_header, create_test_user, login_user
+from tests.conftest import (
+    auth_header,
+    create_test_user,
+    login_user,
+    try_multiple_user_combs,
+)
 from utils.error_messages import UserErrors
 
 
@@ -18,20 +21,7 @@ async def test_create_user_wrong_args(client: AsyncClient):
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_create_user_successfully(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -54,20 +44,7 @@ async def test_create_user_successfully(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=2,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs(username_min_size=2)
 async def test_create_duplicate_user(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -110,20 +87,7 @@ async def test_get_user_not_found(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_get_user_successfully(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -163,20 +127,7 @@ async def test_update_user_wrong_args(client: AsyncClient):
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=2,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs(username_min_size=2)
 async def test_update_user_unauthorized(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -202,20 +153,7 @@ async def test_update_user_unauthorized(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=2,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs(username_min_size=2)
 async def test_update_duplicate_user(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -250,20 +188,7 @@ async def test_update_duplicate_user(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_update_user_successfully(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -296,20 +221,7 @@ async def test_update_user_successfully(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=2,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs(username_min_size=2)
 async def test_delete_user_unauthorized(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -334,20 +246,7 @@ async def test_delete_user_unauthorized(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_delete_user_successfully(
     client: AsyncClient,
     db_session: AsyncSession,
@@ -377,20 +276,7 @@ async def test_delete_user_successfully(
 
 
 @pytest.mark.anyio
-@settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-@given(
-    username=st.text(
-        min_size=1,
-        max_size=50,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-    email=st.emails(),
-    password=st.text(
-        min_size=8,
-        max_size=200,
-        alphabet=st.characters(exclude_categories=["Cs"], exclude_characters=["\x00"]),
-    ),
-)
+@try_multiple_user_combs()
 async def test_get_current_user(
     client: AsyncClient,
     db_session: AsyncSession,

@@ -2,6 +2,9 @@ import os
 
 import pytest
 from httpx import ASGITransport, AsyncClient
+from hypothesis import HealthCheck, given
+from hypothesis import settings as hypothesis_settings
+from hypothesis import strategies as st
 from sqlalchemy import NullPool
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -110,3 +113,32 @@ async def login_user(
 
 def auth_header(token: str):
     return {"Authorization": f"Bearer {token}"}
+
+
+def try_multiple_user_combs(username_min_size: int = 1):
+    strategy = given(
+        username=st.text(
+            min_size=username_min_size,
+            max_size=50,
+            alphabet=st.characters(
+                exclude_categories=["Cs"], exclude_characters=["\x00"]
+            ),
+        ),
+        email=st.emails(),
+        password=st.text(
+            min_size=8,
+            max_size=200,
+            alphabet=st.characters(
+                exclude_categories=["Cs"], exclude_characters=["\x00"]
+            ),
+        ),
+    )
+
+    health_check = hypothesis_settings(
+        suppress_health_check=[HealthCheck.function_scoped_fixture]
+    )
+
+    def decorator(func):
+        return health_check(strategy(func))
+
+    return decorator
