@@ -9,7 +9,12 @@ from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
-from tests.conftest import create_test_user, try_multiple_user_combs
+from tests.conftest import (
+    auth_header,
+    create_test_user,
+    login_user,
+    try_multiple_user_combs,
+)
 from utils.auth import create_access_token, get_current_user, verify_access_token
 from utils.constants import REFRESH_TOKEN_COOKIE_KEY
 from utils.error_messages import AuthErrors
@@ -421,3 +426,94 @@ async def test_forgot_password(
     mock_send_reset_password_email.assert_awaited_once_with(
         email_to=user["email"], username=username, token=ANY
     )
+
+
+@pytest.mark.anyio
+async def test_reset_password_invalid_token(client: AsyncClient):
+    response = await client.post(
+        "/api/auth/reset-password",
+        json={"token": "not a valid token", "new_password": "testing password"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == AuthErrors.INVALID_TOKEN
+
+
+@pytest.mark.anyio
+async def test_reset_password_deleted_user(client: AsyncClient):
+    user = await create_test_user(client, password="testpass")
+    access_token, _ = await login_user(client, user["email"], "testpass")
+
+    with patch(
+        "routers.auth.send_reset_password_email", autospec=True
+    ) as mock_send_reset_password_email:
+        await client.post("/api/auth/forgot-password", json={"email": user["email"]})
+
+        token = (
+            mock_send_reset_password_email.await_args.kwargs["token"]
+            if mock_send_reset_password_email.await_args
+            else ""
+        )
+
+        await client.delete(
+            f"/api/users/{user["id"]}", headers=auth_header(access_token)
+        )
+
+        response = await client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": "testing password"},
+        )
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == AuthErrors.INVALID_TOKEN
+
+
+@pytest.mark.anyio
+@try_multiple_user_combs()
+async def test_reset_password(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user = await create_test_user(client, username, email, password)
+
+    with patch(
+        "routers.auth.send_reset_password_email", autospec=True
+    ) as mock_send_reset_password_email:
+        await client.post("/api/auth/forgot-password", json={"email": email})
+
+        token = (
+            mock_send_reset_password_email.await_args.kwargs["token"]
+            if mock_send_reset_password_email.await_args
+            else ""
+        )
+
+        new_password = "new password"
+        response = await client.post(
+            "/api/auth/reset-password",
+            json={"token": token, "new_password": new_password},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["message"] == AuthMessages.PASSWORD_RESET_SUCCESSFULLY
+
+        response = await client.post(
+            "/api/auth/login",
+            json={
+                "email": email,
+                "password": new_password,
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+
+        access_token = data["access_token"]
+
+        user_id = verify_access_token(access_token)
+        assert user_id is not None
+        assert int(user_id) == user["id"]
