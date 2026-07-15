@@ -98,6 +98,23 @@ async def test_login(
 
 
 @pytest.mark.anyio
+async def test_login_ratelimit(client: AsyncClient):
+    for _ in range(settings.login_rate_limit_max_attempts):
+        await client.post(
+            "/api/auth/login",
+            json={"email": "test@example.com", "password": "wrong password"},
+        )
+
+    response = await client.post(
+        "/api/auth/login",
+        json={"email": "test@example.com", "password": "wrong password"},
+    )
+
+    assert response.status_code == 429
+    assert response.json()["detail"] == AuthErrors.RATE_LIMIT_REACHED
+
+
+@pytest.mark.anyio
 async def test_invalid_refresh(
     client: AsyncClient,
 ):

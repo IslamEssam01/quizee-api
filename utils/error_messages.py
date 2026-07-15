@@ -12,3 +12,4 @@ class AuthErrors:
     INVALID_TOKEN = "Invalid or expired token"
     USER_NOT_FOUND = "User not found"
     REFRESH_TOKEN_MISSING = "Refresh token is missing"
+    RATE_LIMIT_REACHED = "Too many attempts. Please try again later"
