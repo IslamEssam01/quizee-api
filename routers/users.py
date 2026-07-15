@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Cookie, Header, HTTPException, status
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select, update
 
 import models
@@ -105,6 +106,12 @@ async def update_current_user_password(
             )
             .values(revoked_at=datetime.now(UTC))
         )
+
+    await db.execute(
+        sql_delete(models.PasswordResetToken).where(
+            models.PasswordResetToken.user_id == current_user.id
+        )
+    )
     await db.commit()
 
     return {"message": UserMessages.PASSWORD_UPDATED_SUCCESSFULLY}
