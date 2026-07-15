@@ -1,5 +1,10 @@
 import os
 
+os.environ["ENV"] = "TEST"
+from config import settings
+
+settings.db_url = settings.test_db_url
+
 import pytest
 from httpx import ASGITransport, AsyncClient
 from hypothesis import HealthCheck, given
@@ -13,11 +18,8 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
-from config import settings
 from database import Base, get_db
 from main import app
-
-os.environ["DB_URL"] = settings.test_db_url
 
 
 @pytest.fixture(scope="session")
