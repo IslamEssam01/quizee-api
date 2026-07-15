@@ -8,6 +8,7 @@ from fastapi import (
     Depends,
     Header,
     HTTPException,
+    Request,
     Response,
     status,
 )
@@ -26,8 +27,10 @@ from schemas.auth import (
     Token,
 )
 from utils.auth import (
+    check_login_rate_limit,
     create_access_token,
     generate_random_token,
+    get_client_ip,
     hash_password,
     hash_random_token,
     issue_refresh_token,
@@ -45,9 +48,11 @@ router = APIRouter()
 async def login(
     credentials: LoginRequest,
     db: DBSession,
+    request: Request,
     response: Response,
     x_client_type: Annotated[str, Header()] = "web",
 ):
+    await check_login_rate_limit(db, credentials.email.lower(), get_client_ip(request))
     result = await db.execute(
         select(models.User).where(
             func.lower(models.User.email) == credentials.email.lower()
@@ -273,8 +278,13 @@ async def reset_password(request_data: ResetPasswordRequest, db: DBSession):
 
 @router.post("/swagger-login", response_model=Token, include_in_schema=False)
 async def swagger_login(
-    credentials: Annotated[OAuth2PasswordRequestForm, Depends()], db: DBSession
+    credentials: Annotated[OAuth2PasswordRequestForm, Depends()],
+    db: DBSession,
+    request: Request,
 ):
+    await check_login_rate_limit(
+        db, credentials.username.lower(), get_client_ip(request)
+    )
     result = await db.execute(
         select(models.User).where(
             func.lower(models.User.email) == credentials.username.lower()

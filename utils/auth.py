@@ -5,10 +5,10 @@ from typing import Annotated
 from uuid import uuid4
 
 import jwt
-from fastapi import Depends, HTTPException, Response, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
@@ -143,3 +143,39 @@ def delete_refresh_cookie(response: Response):
     response.delete_cookie(
         key=REFRESH_TOKEN_COOKIE_KEY,
     )
+
+
+def get_client_ip(request: Request) -> str:
+    if settings.trust_proxy_headers:
+        forwarded_for = request.headers.get("x-forwarded-for")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+
+    return request.client.host if request.client else ""
+
+
+async def check_login_rate_limit(db: AsyncSession, email: str, ip_address: str):
+    window_start = datetime.now(UTC) - timedelta(
+        seconds=settings.login_rate_limit_max_seconds
+    )
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(models.LoginLog)
+        .where(
+            or_(
+                models.LoginLog.email == email, models.LoginLog.ip_address == ip_address
+            )
+        )
+        .where(models.LoginLog.created_at >= window_start)
+    )
+    total_attempts = count_result.scalar() or 0
+
+    if total_attempts >= settings.login_rate_limit_max_attempts:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=AuthErrors.RATE_LIMIT_REACHED,
+        )
+
+    db.add(models.LoginLog(email=email, ip_address=ip_address))
+    await db.commit()

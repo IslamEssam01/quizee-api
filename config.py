@@ -19,5 +19,9 @@ class Settings(BaseSettings):
     reset_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
 
+    login_rate_limit_max_seconds: int = 60
+    login_rate_limit_max_attempts: int = 5
+    trust_proxy_headers: bool = False
+
 
 settings = Settings()  # Will be loaded from .env   # pyright: ignore[reportCallIssue]
