@@ -5,12 +5,12 @@ from unittest.mock import ANY, patch
 import pytest
 from fastapi import HTTPException
 from httpx import AsyncClient
-from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import models
+from config import settings
 from tests.conftest import (
     auth_header,
+    clean_db,
     create_test_user,
     login_user,
     try_multiple_user_combs,
@@ -48,8 +48,7 @@ async def test_login_incorrect_password(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
-
+    await clean_db(db_session)
     await create_test_user(client, username, email, password)
 
     response = await client.post(
@@ -77,7 +76,7 @@ async def test_login(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -149,7 +148,7 @@ async def test_refresh_web_cookie(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -185,7 +184,7 @@ async def test_refresh(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -224,7 +223,7 @@ async def test_refresh_rotation(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
 
@@ -263,7 +262,7 @@ async def test_refresh_resue_detection(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
 
@@ -344,7 +343,7 @@ async def test_logout_without_logging_in(
     client: AsyncClient,
     db_session: AsyncSession,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     response = await client.post(
         "/api/auth/logout",
@@ -359,7 +358,7 @@ async def test_logout_without_logging_in_web_cookie(
     client: AsyncClient,
     db_session: AsyncSession,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     response = await client.post(
         "/api/auth/logout",
@@ -379,7 +378,7 @@ async def test_logout(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
 
@@ -403,7 +402,7 @@ async def test_logout_web_cookie(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
 
@@ -428,7 +427,7 @@ async def test_forgot_password(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -494,7 +493,7 @@ async def test_reset_password(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 

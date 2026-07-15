@@ -1,12 +1,12 @@
 import pytest
 from httpx import AsyncClient
 from pydantic import validate_email
-from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import models
 from tests.conftest import (
     auth_header,
+    clean_db,
     create_test_user,
     login_user,
     try_multiple_user_combs,
@@ -32,7 +32,7 @@ async def test_create_user_successfully(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
     response = await client.post(
         "/api/users", json={"username": username, "email": email, "password": password}
     )
@@ -55,7 +55,7 @@ async def test_create_duplicate_user(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
 
@@ -81,7 +81,7 @@ async def test_get_user_not_found(
     client: AsyncClient,
     db_session: AsyncSession,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     response = await client.get("/api/users/9999")
 
@@ -98,7 +98,7 @@ async def test_get_user_successfully(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -138,7 +138,7 @@ async def test_update_user_unauthorized(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user1 = await create_test_user(client, username, email, password)
     user2 = await create_test_user(client, username[1:], f"x{email}", password)
@@ -164,7 +164,7 @@ async def test_update_duplicate_user(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
     user = await create_test_user(client, username[1:], f"x{email}", password)
@@ -199,7 +199,7 @@ async def test_update_user_successfully(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -232,7 +232,7 @@ async def test_delete_user_unauthorized(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user1 = await create_test_user(client, username, email, password)
     user2 = await create_test_user(client, username[1:], f"x{email}", password)
@@ -257,7 +257,7 @@ async def test_delete_user_successfully(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
 
@@ -287,7 +287,7 @@ async def test_get_current_user(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
     token, _ = await login_user(client, email, password)
@@ -336,7 +336,7 @@ async def test_change_password(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     user = await create_test_user(client, username, email, password)
     token, _ = await login_user(client, email, password)
@@ -392,7 +392,7 @@ async def test_change_password_with_multi_logout(
     email: str,
     password: str,
 ):
-    await db_session.execute(sql_delete(models.User))
+    await clean_db(db_session)
 
     await create_test_user(client, username, email, password)
     token, _ = await login_user(client, email, password, "web")

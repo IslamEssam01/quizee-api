@@ -13,6 +13,7 @@ from hypothesis import HealthCheck, given
 from hypothesis import settings as hypothesis_settings
 from hypothesis import strategies as st
 from sqlalchemy import NullPool
+from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -20,6 +21,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 
+import models
 from database import Base, get_db
 from main import app
 
@@ -157,3 +159,9 @@ def try_multiple_user_combs(username_min_size: int = 1):
         return health_check(strategy(func))
 
     return decorator
+
+
+async def clean_db(db: AsyncSession):
+    # A helper for cleaning db in the start of hypothesis tests
+    await db.execute(sql_delete(models.User))
+    await db.execute(sql_delete(models.LoginLog))
