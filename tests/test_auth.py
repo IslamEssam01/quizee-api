@@ -1,5 +1,6 @@
 from datetime import timedelta
 from time import sleep
+from unittest.mock import ANY, patch
 
 import pytest
 from fastapi import HTTPException
@@ -12,6 +13,7 @@ from tests.conftest import create_test_user, try_multiple_user_combs
 from utils.auth import create_access_token, get_current_user, verify_access_token
 from utils.constants import REFRESH_TOKEN_COOKIE_KEY
 from utils.error_messages import AuthErrors
+from utils.success_messages import AuthMessages
 
 
 @pytest.mark.anyio
@@ -393,3 +395,29 @@ async def test_logout_web_cookie(
 
     assert response.status_code == 204
     assert REFRESH_TOKEN_COOKIE_KEY not in response.cookies
+
+
+@pytest.mark.anyio
+@try_multiple_user_combs()
+async def test_forgot_password(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    username: str,
+    email: str,
+    password: str,
+):
+    await db_session.execute(sql_delete(models.User))
+
+    user = await create_test_user(client, username, email, password)
+
+    with patch(
+        "routers.auth.send_reset_password_email", autospec=True
+    ) as mock_send_reset_password_email:
+        response = await client.post("/api/auth/forgot-password", json={"email": email})
+
+    assert response.status_code == 202
+    assert response.json()["message"] == AuthMessages.PASSWORD_RESET_REQUESTED
+
+    mock_send_reset_password_email.assert_awaited_once_with(
+        email_to=user["email"], username=username, token=ANY
+    )
