@@ -1,21 +1,35 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, Header, HTTPException, Response, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Cookie,
+    Depends,
+    Header,
+    HTTPException,
+    Response,
+    status,
+)
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select, update
 
 import models
+from config import settings
 from database import DBSession
-from schemas.auth import LoginRequest, RefreshTokenRequest, Token
+from schemas.auth import ForgotPasswordRequest, LoginRequest, RefreshTokenRequest, Token
 from utils.auth import (
     create_access_token,
+    generate_random_token,
     hash_random_token,
     issue_refresh_token,
     set_refresh_cookie,
     verify_password,
 )
+from utils.email import send_reset_password_email
 from utils.error_messages import AuthErrors
+from utils.success_messages import AuthMessages
 
 router = APIRouter()
 
@@ -162,6 +176,46 @@ async def logout(
     )
 
     await db.commit()
+
+
+@router.post("/forgot-password", status_code=status.HTTP_202_ACCEPTED)
+async def forgot_password(
+    request_data: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    db: DBSession,
+):
+
+    result = await db.execute(
+        select(models.User).where(
+            func.lower(models.User.email) == request_data.email.lower()
+        )
+    )
+    user = result.scalars().first()
+
+    if user:
+        await db.execute(
+            sql_delete(models.PasswordResetToken).where(
+                models.PasswordResetToken.user_id == user.id
+            )
+        )
+
+        token = generate_random_token()
+        reset_token = models.PasswordResetToken(
+            user_id=user.id,
+            token_hash=hash_random_token(token),
+            expires_at=datetime.now(UTC)
+            + timedelta(minutes=settings.reset_token_expire_minutes),
+        )
+        db.add(reset_token)
+        await db.commit()
+        background_tasks.add_task(
+            send_reset_password_email,
+            email_to=user.email,
+            username=user.username,
+            token=token,
+        )
+
+    return {"message": AuthMessages.PASSWORD_RESET_REQUESTED}
 
 
 @router.post("/swagger-login", response_model=Token, include_in_schema=False)

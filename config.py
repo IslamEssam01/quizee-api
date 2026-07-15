@@ -10,7 +10,13 @@ class Settings(BaseSettings):
     secret_key: SecretStr
     algorithm: str = "HS256"
     env: str
-    access_token_expire_minutes: int = 30
+    mail_from: str = "example@example.com"
+    smtp_server: str = "localhost"
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: SecretStr = SecretStr("")
+    access_token_expire_minutes: int = 15
+    reset_token_expire_minutes: int = 60
     refresh_token_expire_days: int = 30
 
 
