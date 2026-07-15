@@ -18,10 +18,17 @@ from sqlalchemy import func, select, update
 import models
 from config import settings
 from database import DBSession
-from schemas.auth import ForgotPasswordRequest, LoginRequest, RefreshTokenRequest, Token
+from schemas.auth import (
+    ForgotPasswordRequest,
+    LoginRequest,
+    RefreshTokenRequest,
+    ResetPasswordRequest,
+    Token,
+)
 from utils.auth import (
     create_access_token,
     generate_random_token,
+    hash_password,
     hash_random_token,
     issue_refresh_token,
     set_refresh_cookie,
@@ -216,6 +223,52 @@ async def forgot_password(
         )
 
     return {"message": AuthMessages.PASSWORD_RESET_REQUESTED}
+
+
+@router.post("/reset-password")
+async def reset_password(request_data: ResetPasswordRequest, db: DBSession):
+    result = await db.execute(
+        select(models.PasswordResetToken).where(
+            models.PasswordResetToken.token_hash
+            == hash_random_token(request_data.token)
+        )
+    )
+    reset_token = result.scalars().first()
+
+    if not reset_token:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=AuthErrors.INVALID_TOKEN
+        )
+
+    if reset_token.expires_at < datetime.now(UTC):
+        await db.delete(reset_token)
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=AuthErrors.INVALID_TOKEN
+        )
+
+    result = await db.execute(
+        select(models.User).where(models.User.id == reset_token.user_id)
+    )
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=AuthErrors.INVALID_TOKEN
+        )
+
+    await db.execute(
+        sql_delete(models.PasswordResetToken).where(
+            models.PasswordResetToken.user_id == user.id
+        )
+    )
+    await db.execute(
+        sql_delete(models.RefreshToken).where(models.RefreshToken.user_id == user.id)
+    )
+    user.password_hash = hash_password(request_data.new_password)
+
+    await db.commit()
+
+    return {"message": AuthMessages.PASSWORD_RESET_SUCCESSFULLY}
 
 
 @router.post("/swagger-login", response_model=Token, include_in_schema=False)
