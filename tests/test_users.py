@@ -1,5 +1,6 @@
 import pytest
 from httpx import AsyncClient
+from pydantic import validate_email
 from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,7 +43,7 @@ async def test_create_user_successfully(
 
     assert data.keys() == {"id", "username", "email"}
     assert data["username"] == username
-    assert data["email"].lower() == email.lower()
+    assert data["email"].lower() == validate_email(email)[1].lower()
 
 
 @pytest.mark.anyio
@@ -60,7 +61,7 @@ async def test_create_duplicate_user(
 
     response = await client.post(
         "/api/users",
-        json={"username": username, "email": email[1:], "password": password},
+        json={"username": username, "email": f"x{email}", "password": password},
     )
 
     assert response.status_code == 409
@@ -140,7 +141,7 @@ async def test_update_user_unauthorized(
     await db_session.execute(sql_delete(models.User))
 
     user1 = await create_test_user(client, username, email, password)
-    user2 = await create_test_user(client, username[1:], email[1:], password)
+    user2 = await create_test_user(client, username[1:], f"x{email}", password)
 
     token2, _ = await login_user(client, user2["email"], password)
 
@@ -166,7 +167,7 @@ async def test_update_duplicate_user(
     await db_session.execute(sql_delete(models.User))
 
     await create_test_user(client, username, email, password)
-    user = await create_test_user(client, username[1:], email[1:], password)
+    user = await create_test_user(client, username[1:], f"x{email}", password)
 
     token, _ = await login_user(client, user["email"], password)
 
@@ -234,7 +235,7 @@ async def test_delete_user_unauthorized(
     await db_session.execute(sql_delete(models.User))
 
     user1 = await create_test_user(client, username, email, password)
-    user2 = await create_test_user(client, username[1:], email[1:], password)
+    user2 = await create_test_user(client, username[1:], f"x{email}", password)
 
     token2, _ = await login_user(client, user2["email"], password)
 
@@ -303,7 +304,7 @@ async def test_get_current_user(
     assert data.keys() == {"id", "username", "email"}
     assert data["id"] == user["id"]
     assert data["username"] == username
-    assert data["email"].lower() == email.lower()
+    assert data["email"].lower() == user["email"]
 
 
 @pytest.mark.anyio

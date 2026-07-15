@@ -1,5 +1,7 @@
 import os
 
+from pydantic import validate_email
+
 os.environ["ENV"] = "TEST"
 from config import settings
 
@@ -120,6 +122,14 @@ def auth_header(token: str):
     return {"Authorization": f"Bearer {token}"}
 
 
+def _valid_email(email: str) -> bool:
+    try:
+        validate_email(email)
+        return True
+    except ValueError:
+        return False
+
+
 def try_multiple_user_combs(username_min_size: int = 1):
     strategy = given(
         username=st.text(
@@ -129,7 +139,7 @@ def try_multiple_user_combs(username_min_size: int = 1):
                 exclude_categories=["Cs"], exclude_characters=["\x00"]
             ),
         ),
-        email=st.emails(),
+        email=st.emails().filter(_valid_email),
         password=st.text(
             min_size=8,
             max_size=200,

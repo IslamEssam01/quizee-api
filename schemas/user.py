@@ -1,15 +1,15 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
 
 
 class UserCreate(BaseModel):
     username: str = Field(min_length=1, max_length=50)
-    email: str = Field(min_length=1, max_length=200)
-    password: str = Field(min_length=1, max_length=200)
+    email: EmailStr = Field(min_length=1, max_length=200)
+    password: str = Field(min_length=8, max_length=200)
 
 
 class UserUpdate(BaseModel):
     username: str | None = Field(min_length=1, max_length=50, default=None)
-    email: str | None = Field(min_length=1, max_length=200, default=None)
+    email: EmailStr | None = Field(min_length=1, max_length=200, default=None)
     password: str | None = Field(min_length=8, max_length=200, default=None)
 
 
@@ -19,7 +19,7 @@ class UserPublic(BaseModel):
 
 
 class UserPrivate(UserPublic):
-    email: str
+    email: EmailStr
 
 
 class ChangePasswordRequest(BaseModel):
