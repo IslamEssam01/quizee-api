@@ -13,3 +13,7 @@ class AuthErrors:
     USER_NOT_FOUND = "User not found"
     REFRESH_TOKEN_MISSING = "Refresh token is missing"
     RATE_LIMIT_REACHED = "Too many attempts. Please try again later"
+
+
+class QuizErrors:
+    NO_CORRECT_ANSWER = "A question has no correct answer provided"
