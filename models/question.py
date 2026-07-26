@@ -31,6 +31,6 @@ class Question(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     quiz: Mapped["Quiz"] = relationship(back_populates="questions")
-    answers: Mapped["AnswerOption"] = relationship(
+    answers: Mapped[list["AnswerOption"]] = relationship(
         back_populates="question", cascade="all, delete-orphan"
     )
