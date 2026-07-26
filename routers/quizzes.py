@@ -4,14 +4,14 @@ from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from schemas.quiz import QuizCreate, QuizePrivate
+from schemas.quiz import QuizCreate, QuizPrivate
 from utils.auth import CurrentUser
 from utils.error_messages import QuizErrors
 
 router = APIRouter()
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=QuizePrivate)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=QuizPrivate)
 async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession):
     for question in quiz.questions:
         if not any(answer.is_correct for answer in question.answers):

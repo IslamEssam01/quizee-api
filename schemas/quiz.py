@@ -36,11 +36,10 @@ class QuizCreate(BaseModel):
     description: str = Field(min_length=1)
     visibility: Visibility
     pass_threshold: int = Field(ge=1, le=100)
-    owner_id: int
     questions: list[QuestionCreate] = Field(min_length=1)
 
 
-class QuizePrivate(BaseModel):
+class QuizPrivate(BaseModel):
     id: int
     title: str
     description: str

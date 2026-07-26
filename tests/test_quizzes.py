@@ -110,6 +110,5 @@ async def test_create_quiz(client: AsyncClient):
                 response_question["answers"][j]["is_correct"]
                 == quiz_question["answers"][j]["is_correct"]
             )
-    # assert data["questions"] == quiz["questions"]
 
     assert data["owner_id"] == user["id"]
