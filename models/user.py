@@ -8,6 +8,7 @@ from database import Base
 
 if TYPE_CHECKING:
     from models.password_reset_token import PasswordResetToken
+    from models.quiz import Quiz
     from models.refresh_token import RefreshToken
 
 
@@ -36,4 +37,8 @@ class User(Base):
     )
     password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+
+    quizzes: Mapped[list["Quiz"]] = relationship(
+        back_populates="owner", cascade="all, delete-orphan"
     )
