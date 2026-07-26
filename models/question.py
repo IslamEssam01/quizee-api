@@ -8,6 +8,7 @@ from database import Base
 from models.user import relationship
 
 if TYPE_CHECKING:
+    from models.answer_option import AnswerOption
     from models.quiz import Quiz
 
 
@@ -30,3 +31,6 @@ class Question(Base):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
 
     quiz: Mapped["Quiz"] = relationship(back_populates="questions")
+    answers: Mapped["AnswerOption"] = relationship(
+        back_populates="question", cascade="all, delete-orphan"
+    )
