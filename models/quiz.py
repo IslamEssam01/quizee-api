@@ -17,6 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base
 
 if TYPE_CHECKING:
+    from models.question import Question
     from models.user import User
 
 
@@ -57,3 +58,6 @@ class Quiz(Base):
     )
 
     owner: Mapped["User"] = relationship(back_populates="quizzes")
+    questions: Mapped[list["Question"]] = relationship(
+        back_populates="quiz", cascade="all, delete-orphan"
+    )
