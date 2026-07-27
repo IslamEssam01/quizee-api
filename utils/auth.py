@@ -78,9 +78,10 @@ def verify_access_token(token: str) -> str | None:
 current_user_error_headers = {"WWW-Authenticate": "Bearer"}
 
 
-async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], db: DBSession
-):
+AccessToken = Annotated[str, Depends(oauth2_scheme)]
+
+
+async def get_current_user(token: AccessToken, db: DBSession):
     user_id = verify_access_token(token)
     if not user_id:
         raise HTTPException(

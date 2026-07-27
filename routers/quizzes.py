@@ -8,8 +8,9 @@ import models
 from database import DBSession
 from models.quiz import Visibility
 from schemas.quiz import PaginatedQuizResponse, QuizCreate, QuizPrivate, QuizPublic
-from utils.auth import CurrentUser
+from utils.auth import AccessToken, CurrentUser, get_current_user
 from utils.error_messages import QuizErrors
+from utils.permission import Action, can_user_do
 
 router = APIRouter()
 
@@ -20,7 +21,11 @@ async def get_quizzes(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
 ):
-    count_reslut = await db.execute(select(func.count()).select_from(models.Quiz))
+    count_reslut = await db.execute(
+        select(func.count())
+        .select_from(models.Quiz)
+        .where(models.Quiz.visibility == Visibility.PUBLIC)
+    )
     total = count_reslut.scalar() or 0
 
     result = await db.execute(
@@ -52,6 +57,7 @@ async def get_quizzes(
 async def get_quiz(
     quiz_id: int,
     db: DBSession,
+    token: AccessToken | None = None,
 ):
     result = await db.execute(
         select(models.Quiz)
@@ -61,14 +67,28 @@ async def get_quiz(
         )
         .where(models.Quiz.id == quiz_id)
     )
-
     quiz = result.scalars().first()
-    if quiz:
-        return quiz
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
 
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
-    )
+    user: models.User | None = None
+
+    try:
+        user = await get_current_user(token, db)
+    except:
+        pass
+
+    if quiz.visibility != Visibility.PUBLIC and (
+        not user or not can_user_do(user, Action.VIEW, quiz.owner_id)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_VIEW_QUIZ,
+        )
+
+    return quiz
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=QuizPrivate)
