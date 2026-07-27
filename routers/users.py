@@ -67,7 +67,7 @@ async def get_current_user(current_user: CurrentUser):
 
 
 @router.get("/me/quizzes", response_model=PaginatedQuizResponse)
-async def get_quizzes(
+async def get_current_user_quizzes(
     current_user: CurrentUser,
     db: DBSession,
     skip: Annotated[int, Query(ge=0)] = 0,
@@ -117,6 +117,45 @@ async def get_user(user_id: int, db: DBSession):
         )
 
     return user
+
+
+@router.get("/{user_id}/quizzes", response_model=PaginatedQuizResponse)
+async def get_user_quizzes(
+    user_id: int,
+    db: DBSession,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+    visibility: Annotated[Visibility, Query()] = Visibility.PUBLIC,
+):
+    count_reslut = await db.execute(select(func.count()).select_from(models.Quiz))
+    total = count_reslut.scalar() or 0
+
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
+        )
+        .where(
+            models.Quiz.visibility == visibility,
+            models.Quiz.owner_id == user_id,
+        )
+        .order_by(models.Quiz.created_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+
+    quizzes = result.scalars().all()
+
+    has_more = skip + len(quizzes) < total
+
+    return PaginatedQuizResponse(
+        quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
+        skip=skip,
+        limit=limit,
+        total=total,
+        has_more=has_more,
+    )
 
 
 @router.patch("/me/password")

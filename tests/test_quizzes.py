@@ -178,3 +178,34 @@ async def test_get_current_user_quizzes(client: AsyncClient):
 
     check_quiz_matches(data["quizzes"][0], user, quiz1, True)
     check_quiz_matches(data["quizzes"][1], user, quiz2, True)
+
+
+@pytest.mark.anyio
+async def test_get_user_quizzes(client: AsyncClient):
+    user = await create_test_user(client)
+    user2 = await create_test_user(client, email="user2@test.com", username="user2")
+    token, _ = await login_user(client)
+
+    quiz1 = await create_test_quiz(user)
+    quiz2 = await create_test_quiz(user)
+    await create_test_quiz(user2)
+    await create_test_quiz(user2)
+
+    await client.post("/api/quizzes", json=quiz1, headers=auth_header(token))
+    await client.post("/api/quizzes", json=quiz2, headers=auth_header(token))
+
+    response = await client.get(
+        f"/api/users/{user["id"]}/quizzes",
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data.keys() == {"quizzes", "skip", "limit", "total", "has_more"}
+    assert isinstance(data["quizzes"], list)
+    assert data["skip"] == 0
+    assert data["total"] == 2
+    assert data["has_more"] == False
+    assert len(data["quizzes"]) == 2
+
+    check_quiz_matches(data["quizzes"][0], user, quiz1, True)
+    check_quiz_matches(data["quizzes"][1], user, quiz2, True)
