@@ -12,6 +12,7 @@ from utils.auth import AccessToken, CurrentUser, get_current_user
 from utils.enums import Visibility
 from utils.error_messages import QuizErrors
 from utils.permission import Action, can_user_do
+from utils.quizzes import get_quizzes_with_options, sort_quiz_questions
 
 router = APIRouter()
 
@@ -22,37 +23,8 @@ async def get_quizzes(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
 ):
-    count_result = await db.execute(
-        select(func.count())
-        .select_from(models.Quiz)
-        .where(models.Quiz.visibility == Visibility.PUBLIC)
-    )
-    total = count_result.scalar() or 0
-
-    result = await db.execute(
-        select(models.Quiz)
-        .options(
-            selectinload(models.Quiz.owner),
-        )
-        .where(models.Quiz.visibility == Visibility.PUBLIC)
-        .order_by(models.Quiz.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-
-    quizzes = result.scalars().all()
-
-    for quiz in quizzes:
-        quiz.questions.sort(key= lambda question: question["position"])
-
-    has_more = skip + len(quizzes) < total
-
-    return PaginatedQuizResponse(
-        quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
-        skip=skip,
-        limit=limit,
-        total=total,
-        has_more=has_more,
+    return await get_quizzes_with_options(
+        db=db, skip=skip, limit=limit, visibility=Visibility.PUBLIC
     )
 
 
@@ -77,10 +49,11 @@ async def get_quiz(
 
     user: models.User | None = None
 
-    try:
-        user = await get_current_user(token, db)
-    except:
-        pass
+    if token:
+        try:
+            user = await get_current_user(token, db)
+        except:
+            pass
 
     if quiz.visibility != Visibility.PUBLIC and (
         not user or not can_user_do(user, Action.VIEW, quiz.owner_id)
@@ -90,7 +63,7 @@ async def get_quiz(
             detail=QuizErrors.NOT_AUTHORIZED_TO_VIEW_QUIZ,
         )
 
-    quiz.questions.sort(key=lambda question: question["position"])
+    sort_quiz_questions(quiz.questions)
 
     return quiz
 
@@ -118,6 +91,6 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
     await db.commit()
     await db.refresh(new_quiz, attribute_names=["owner"])
 
-    new_quiz.questions.sort(key=lambda question: question["position"])
+    sort_quiz_questions(new_quiz.questions)
 
     return new_quiz

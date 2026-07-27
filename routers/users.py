@@ -19,6 +19,7 @@ from schemas.user import (
 from utils.auth import CurrentUser, hash_password, hash_random_token, verify_password
 from utils.enums import Visibility
 from utils.error_messages import UserErrors
+from utils.quizzes import get_quizzes_with_options
 from utils.success_messages import UserMessages
 
 router = APIRouter()
@@ -74,41 +75,8 @@ async def get_current_user_quizzes(
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     visibility: Annotated[Visibility | None, Query()] = None,
 ):
-    count_result = await db.execute(
-        select(func.count())
-        .select_from(models.Quiz)
-        .where(models.Quiz.owner_id == current_user.id)
-    )
-    total = count_result.scalar() or 0
-
-    stmt = (
-        select(models.Quiz)
-        .options(
-            selectinload(models.Quiz.owner),
-        )
-        .where(models.Quiz.owner_id == current_user.id)
-    )
-
-    if visibility:
-        stmt = stmt.where(models.Quiz.visibility == visibility)
-
-    result = await db.execute(
-        stmt.order_by(models.Quiz.created_at.desc()).offset(skip).limit(limit)
-    )
-
-    quizzes = result.scalars().all()
-
-    for quiz in quizzes:
-        quiz.questions.sort(key=lambda question: question["position"])
-
-    has_more = skip + len(quizzes) < total
-
-    return PaginatedQuizResponse(
-        quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
-        skip=skip,
-        limit=limit,
-        total=total,
-        has_more=has_more,
+    return await get_quizzes_with_options(
+        db=db, skip=skip, limit=limit, owner_id=current_user.id, visibility=visibility
     )
 
 
@@ -133,40 +101,8 @@ async def get_user_quizzes(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
 ):
-    count_result = await db.execute(
-        select(func.count())
-        .select_from(models.Quiz)
-        .where(models.Quiz.visibility == Visibility.PUBLIC)
-        .where(models.Quiz.owner_id == user_id)
-    )
-    total = count_result.scalar() or 0
-
-    result = await db.execute(
-        select(models.Quiz)
-        .options(
-            selectinload(models.Quiz.owner),
-        )
-        .where(
-            models.Quiz.visibility == Visibility.PUBLIC,
-            models.Quiz.owner_id == user_id,
-        )
-        .order_by(models.Quiz.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-    )
-
-    quizzes = result.scalars().all()
-    for quiz in quizzes:
-        quiz.questions.sort(key=lambda question: question["position"])
-
-    has_more = skip + len(quizzes) < total
-
-    return PaginatedQuizResponse(
-        quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
-        skip=skip,
-        limit=limit,
-        total=total,
-        has_more=has_more,
+    return await get_quizzes_with_options(
+        db=db, skip=skip, limit=limit, owner_id=user_id, visibility=Visibility.PUBLIC
     )
 
 
