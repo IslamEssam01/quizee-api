@@ -59,5 +59,7 @@ class Quiz(Base):
 
     owner: Mapped["User"] = relationship(back_populates="quizzes")
     questions: Mapped[list["Question"]] = relationship(
-        back_populates="quiz", cascade="all, delete-orphan"
+        back_populates="quiz",
+        cascade="all, delete-orphan",
+        order_by="Question.position",
     )
