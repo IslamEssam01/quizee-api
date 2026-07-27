@@ -74,7 +74,11 @@ async def get_current_user_quizzes(
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     visibility: Annotated[Visibility | None, Query()] = None,
 ):
-    count_reslut = await db.execute(select(func.count()).select_from(models.Quiz))
+    count_reslut = await db.execute(
+        select(func.count())
+        .select_from(models.Quiz)
+        .where(models.Quiz.owner_id == current_user.id)
+    )
     total = count_reslut.scalar() or 0
 
     stmt = (

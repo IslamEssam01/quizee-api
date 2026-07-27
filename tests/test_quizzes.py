@@ -157,14 +157,18 @@ async def test_get_current_user_quizzes(client: AsyncClient):
     user = await create_test_user(client)
     user2 = await create_test_user(client, email="user2@test.com", username="user2")
     token, _ = await login_user(client)
+    token2, _ = await login_user(client, email="user2@test.com")
 
     quiz1 = await create_test_quiz(user)
     quiz2 = await create_test_quiz(user)
-    await create_test_quiz(user2)
-    await create_test_quiz(user2)
+    quiz3 = await create_test_quiz(user2)
+    quiz4 = await create_test_quiz(user2)
 
     await client.post("/api/quizzes", json=quiz1, headers=auth_header(token))
     await client.post("/api/quizzes", json=quiz2, headers=auth_header(token))
+
+    await client.post("/api/quizzes", json=quiz3, headers=auth_header(token2))
+    await client.post("/api/quizzes", json=quiz4, headers=auth_header(token2))
 
     response = await client.get("/api/users/me/quizzes", headers=auth_header(token))
 
