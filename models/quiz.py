@@ -1,6 +1,5 @@
-import enum
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import (
     CheckConstraint,
@@ -42,7 +41,7 @@ class Quiz(Base):
         nullable=False,
         default=Visibility.PUBLIC,
     )
-    questions: Mapped[list[QuestionPrivate]] = mapped_column(JSONB, nullable=False)
+    questions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

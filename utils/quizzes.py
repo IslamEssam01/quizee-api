@@ -1,13 +1,15 @@
+from typing import Any
+
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from schemas.quiz import PaginatedQuizResponse, QuestionPrivate, QuizPublic
+from schemas.quiz import PaginatedQuizResponse, QuizPublic
 from utils.enums import Visibility
 
 
-def sort_quiz_questions(questions: list[QuestionPrivate]):
+def sort_quiz_questions(questions: list[dict[str, Any]]):
     questions.sort(key=lambda question: question["position"])
 
 

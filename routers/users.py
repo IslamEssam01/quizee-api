@@ -4,11 +4,10 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Header, HTTPException, Query, status
 from sqlalchemy import delete as sql_delete
 from sqlalchemy import func, select, update
-from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from schemas.quiz import PaginatedQuizResponse, QuizPublic
+from schemas.quiz import PaginatedQuizResponse
 from schemas.user import (
     ChangePasswordRequest,
     UserCreate,
