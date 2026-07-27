@@ -49,6 +49,29 @@ async def get_quizzes(
     )
 
 
+@router.get("/{quiz_id}", response_model=QuizPublic)
+async def get_quiz(
+    quiz_id: int,
+    db: DBSession,
+):
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
+        )
+        .where(models.Quiz.id == quiz_id)
+    )
+
+    quiz = result.scalars().first()
+    if quiz:
+        return quiz
+
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+    )
+
+
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=QuizPrivate)
 async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession):
     for question in quiz.questions:

@@ -17,3 +17,4 @@ class AuthErrors:
 
 class QuizErrors:
     NO_CORRECT_ANSWER = "A question has no correct answer provided"
+    QUIZ_NOT_FOUND = "Quiz not found"

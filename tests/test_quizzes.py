@@ -6,6 +6,7 @@ from httpx import AsyncClient
 import models
 from models.question import QuestionType
 from tests.conftest import auth_header, create_test_user, login_user
+from utils.error_messages import QuizErrors
 
 
 class TestAnswer(TypedDict):
@@ -209,3 +210,28 @@ async def test_get_user_quizzes(client: AsyncClient):
 
     check_quiz_matches(data["quizzes"][0], user, quiz1, True)
     check_quiz_matches(data["quizzes"][1], user, quiz2, True)
+
+
+@pytest.mark.anyio
+async def test_get_not_found_quiz_by_id(client: AsyncClient):
+    response = await client.get("/api/quizzes/999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_get_quiz_by_id(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
+
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    response = await client.get(f"/api/quizzes/{data["id"]}")
+
+    assert response.status_code == 200
+    data = response.json()
+    check_quiz_matches(data, user, quiz, True)
