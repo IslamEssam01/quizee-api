@@ -1,8 +1,9 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 import pytest
 from httpx import AsyncClient
 
+import models
 from models.question import QuestionType
 from tests.conftest import auth_header, create_test_user, login_user
 
@@ -28,10 +29,7 @@ class TestQuiz(TypedDict):
     questions: list[TestQuestion]
 
 
-@pytest.mark.anyio
-async def test_create_quiz(client: AsyncClient):
-    user = await create_test_user(client)
-    token, _ = await login_user(client)
+async def create_test_quiz(user: Any):
     quiz: TestQuiz = {
         "title": "test quiz",
         "description": "testing create quiz",
@@ -42,7 +40,7 @@ async def test_create_quiz(client: AsyncClient):
             {
                 "text": "question 1",
                 "position": 1,
-                "type": QuestionType.MCQ.value,
+                "type": QuestionType.MCQ,
                 "answers": [
                     {"text": "answer 1", "is_correct": True},
                     {"text": "answer 2", "is_correct": False},
@@ -52,7 +50,7 @@ async def test_create_quiz(client: AsyncClient):
             {
                 "text": "question 2",
                 "position": 2,
-                "type": QuestionType.MCQ.value,
+                "type": QuestionType.MCQ,
                 "answers": [
                     {"text": "answer 1", "is_correct": False},
                     {"text": "answer 2", "is_correct": True},
@@ -62,7 +60,7 @@ async def test_create_quiz(client: AsyncClient):
             {
                 "text": "question 3",
                 "position": 3,
-                "type": QuestionType.TRUE_OR_FALSE.value,
+                "type": QuestionType.TRUE_OR_FALSE,
                 "answers": [
                     {"text": "true", "is_correct": True},
                     {"text": "false", "is_correct": False},
@@ -70,6 +68,16 @@ async def test_create_quiz(client: AsyncClient):
             },
         ],
     }
+
+    return quiz
+
+
+@pytest.mark.anyio
+async def test_create_quiz(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
 
     response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
 
@@ -109,6 +117,51 @@ async def test_create_quiz(client: AsyncClient):
             assert (
                 response_question["answers"][j]["is_correct"]
                 == quiz_question["answers"][j]["is_correct"]
+            )
+
+    assert data["owner_id"] == user["id"]
+
+
+@pytest.mark.anyio
+async def test_get_quizzes(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
+
+    await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+
+    response = await client.get("/api/quizzes")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data.keys() == {"quizzes", "skip", "limit", "total", "has_more"}
+    assert isinstance(data["quizzes"], list)
+    assert data["skip"] == 0
+    assert data["total"] == 1
+    assert data["has_more"] == False
+    assert len(data["quizzes"]) == 1
+
+    data = data["quizzes"][0]
+
+    assert isinstance(data["questions"], list)
+    assert data["title"] == quiz["title"]
+    assert data["owner_id"] == quiz["owner_id"]
+    assert data["description"] == quiz["description"]
+    assert data["visibility"] == quiz["visibility"]
+    assert data["pass_threshold"] == quiz["pass_threshold"]
+    assert len(data["questions"]) == len(quiz["questions"])
+    for i in range(len(quiz["questions"])):
+        response_question = data["questions"][i]
+        quiz_question = quiz["questions"][i]
+        assert response_question["text"] == quiz_question["text"]
+        assert response_question["position"] == quiz_question["position"]
+        assert response_question["type"] == quiz_question["type"]
+        assert len(response_question["answers"]) == len(quiz_question["answers"])
+        for j in range(len(quiz_question["answers"])):
+            assert (
+                response_question["answers"][j]["text"]
+                == quiz_question["answers"][j]["text"]
             )
 
     assert data["owner_id"] == user["id"]
