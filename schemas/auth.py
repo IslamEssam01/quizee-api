@@ -1,7 +1,9 @@
 from pydantic import BaseModel, EmailStr, Field
 
+from schemas.base import BaseResponse
 
-class Token(BaseModel):
+
+class Token(BaseResponse):
     access_token: str
     refresh_token: str
     token_type: str
