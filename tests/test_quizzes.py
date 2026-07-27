@@ -315,3 +315,59 @@ async def test_update_quiz_successfully(client: AsyncClient):
     data = response.json()
 
     check_quiz_matches(data, user, new_quiz, False)
+
+
+@pytest.mark.anyio
+async def test_delete_quiz_not_found(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    response = await client.delete(
+        "/api/quizzes/999",
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_delete_quiz_unathorized(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@test.com", username="user2")
+    token2, _ = await login_user(client, email="user2@test.com")
+
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    response = await client.delete(
+        f"/api/quizzes/{data['id']}",
+        headers=auth_header(token2),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_DELETE_QUIZ
+
+
+@pytest.mark.anyio
+async def test_delete_quiz_successfully(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    response = await client.delete(
+        f"/api/quizzes/{data['id']}",
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 204
+
+    response = await client.get(
+        f"/api/quizzes/{data["id"]}",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND

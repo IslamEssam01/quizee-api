@@ -135,3 +135,22 @@ async def update_quiz(
 
     sort_quiz_questions(quiz.questions)
     return quiz
+
+
+@router.delete("/{quiz_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_quiz(quiz_id: int, current_user: CurrentUser, db: DBSession):
+    result = await db.execute(select(models.Quiz).where(models.Quiz.id == quiz_id))
+    quiz = result.scalars().first()
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    if not can_user_do(current_user, Action.EDIT, quiz.owner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_DELETE_QUIZ,
+        )
+
+    await db.delete(quiz)
+    await db.commit()
