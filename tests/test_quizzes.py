@@ -72,18 +72,7 @@ async def create_test_quiz(user: Any):
     return quiz
 
 
-@pytest.mark.anyio
-async def test_create_quiz(client: AsyncClient):
-    user = await create_test_user(client)
-    token, _ = await login_user(client)
-
-    quiz = await create_test_quiz(user)
-
-    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
-
-    assert response.status_code == 201
-
-    data = response.json()
+def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
     assert data.keys() == {
         "id",
         "title",
@@ -114,12 +103,28 @@ async def test_create_quiz(client: AsyncClient):
                 response_question["answers"][j]["text"]
                 == quiz_question["answers"][j]["text"]
             )
-            assert (
-                response_question["answers"][j]["is_correct"]
-                == quiz_question["answers"][j]["is_correct"]
-            )
+            if not is_public:
+                assert (
+                    response_question["answers"][j]["is_correct"]
+                    == quiz_question["answers"][j]["is_correct"]
+                )
 
     assert data["owner_id"] == user["id"]
+
+
+@pytest.mark.anyio
+async def test_create_quiz(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
+
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+
+    assert response.status_code == 201
+
+    data = response.json()
+    check_quiz_matches(data, user, quiz, False)
 
 
 @pytest.mark.anyio
@@ -143,25 +148,33 @@ async def test_get_quizzes(client: AsyncClient):
     assert len(data["quizzes"]) == 1
 
     data = data["quizzes"][0]
+    check_quiz_matches(data, user, quiz, True)
 
-    assert isinstance(data["questions"], list)
-    assert data["title"] == quiz["title"]
-    assert data["owner_id"] == quiz["owner_id"]
-    assert data["description"] == quiz["description"]
-    assert data["visibility"] == quiz["visibility"]
-    assert data["pass_threshold"] == quiz["pass_threshold"]
-    assert len(data["questions"]) == len(quiz["questions"])
-    for i in range(len(quiz["questions"])):
-        response_question = data["questions"][i]
-        quiz_question = quiz["questions"][i]
-        assert response_question["text"] == quiz_question["text"]
-        assert response_question["position"] == quiz_question["position"]
-        assert response_question["type"] == quiz_question["type"]
-        assert len(response_question["answers"]) == len(quiz_question["answers"])
-        for j in range(len(quiz_question["answers"])):
-            assert (
-                response_question["answers"][j]["text"]
-                == quiz_question["answers"][j]["text"]
-            )
 
-    assert data["owner_id"] == user["id"]
+@pytest.mark.anyio
+async def test_get_current_user_quizzes(client: AsyncClient):
+    user = await create_test_user(client)
+    user2 = await create_test_user(client, email="user2@test.com", username="user2")
+    token, _ = await login_user(client)
+
+    quiz1 = await create_test_quiz(user)
+    quiz2 = await create_test_quiz(user)
+    await create_test_quiz(user2)
+    await create_test_quiz(user2)
+
+    await client.post("/api/quizzes", json=quiz1, headers=auth_header(token))
+    await client.post("/api/quizzes", json=quiz2, headers=auth_header(token))
+
+    response = await client.get("/api/users/me/quizzes", headers=auth_header(token))
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data.keys() == {"quizzes", "skip", "limit", "total", "has_more"}
+    assert isinstance(data["quizzes"], list)
+    assert data["skip"] == 0
+    assert data["total"] == 2
+    assert data["has_more"] == False
+    assert len(data["quizzes"]) == 2
+
+    check_quiz_matches(data["quizzes"][0], user, quiz1, True)
+    check_quiz_matches(data["quizzes"][1], user, quiz2, True)
