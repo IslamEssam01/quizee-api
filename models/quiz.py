@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from models.user import User
 
 
-class Visibility(enum.Enum):
+class Visibility(enum.StrEnum):
     PUBLIC = "public"
 
 

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from models.quiz import Quiz
 
 
-class QuestionType(enum.Enum):
+class QuestionType(enum.StrEnum):
     MCQ = "mcq"
     TRUE_OR_FALSE = "T or F"
 
