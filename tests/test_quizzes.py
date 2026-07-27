@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from tests.conftest import auth_header, create_test_user, login_user
 from utils.enums import QuestionType
 from utils.error_messages import QuizErrors
+from utils.quizzes import sort_quiz_questions
 
 
 class TestAnswer(TypedDict):
@@ -313,6 +314,8 @@ async def test_update_quiz_successfully(client: AsyncClient):
 
     assert response.status_code == 200
     data = response.json()
+
+    sort_quiz_questions(new_quiz["questions"])
 
     check_quiz_matches(data, user, new_quiz, False)
 
