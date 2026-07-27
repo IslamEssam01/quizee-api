@@ -118,6 +118,14 @@ async def update_quiz(
             detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ,
         )
 
+    if quiz_update.questions:
+        for question in quiz_update.questions:
+            if not any(answer.is_correct for answer in question.answers):
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=QuizErrors.NO_CORRECT_ANSWER,
+                )
+
     update_data = quiz_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(quiz, key, value)
@@ -125,4 +133,5 @@ async def update_quiz(
     await db.commit()
     await db.refresh(quiz, attribute_names=["owner"])
 
+    sort_quiz_questions(quiz.questions)
     return quiz
