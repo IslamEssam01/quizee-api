@@ -72,24 +72,25 @@ async def get_current_user_quizzes(
     db: DBSession,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
-    visibility: Annotated[Visibility, Query()] = Visibility.PUBLIC,
+    visibility: Annotated[Visibility | None, Query()] = None,
 ):
     count_reslut = await db.execute(select(func.count()).select_from(models.Quiz))
     total = count_reslut.scalar() or 0
 
-    result = await db.execute(
+    stmt = (
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
             selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
-        .where(
-            models.Quiz.visibility == visibility,
-            models.Quiz.owner_id == current_user.id,
-        )
-        .order_by(models.Quiz.created_at.desc())
-        .offset(skip)
-        .limit(limit)
+        .where(models.Quiz.owner_id == current_user.id)
+    )
+
+    if visibility:
+        stmt = stmt.where(models.Quiz.visibility == visibility)
+
+    result = await db.execute(
+        stmt.order_by(models.Quiz.created_at.desc()).offset(skip).limit(limit)
     )
 
     quizzes = result.scalars().all()
@@ -125,7 +126,6 @@ async def get_user_quizzes(
     db: DBSession,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
-    visibility: Annotated[Visibility, Query()] = Visibility.PUBLIC,
 ):
     count_reslut = await db.execute(select(func.count()).select_from(models.Quiz))
     total = count_reslut.scalar() or 0
@@ -137,7 +137,7 @@ async def get_user_quizzes(
             selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
         .where(
-            models.Quiz.visibility == visibility,
+            models.Quiz.visibility == Visibility.PUBLIC,
             models.Quiz.owner_id == user_id,
         )
         .order_by(models.Quiz.created_at.desc())

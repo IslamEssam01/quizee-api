@@ -19,7 +19,6 @@ async def get_quizzes(
     db: DBSession,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
-    visibility: Annotated[Visibility, Query()] = Visibility.PUBLIC,
 ):
     count_reslut = await db.execute(select(func.count()).select_from(models.Quiz))
     total = count_reslut.scalar() or 0
@@ -30,7 +29,7 @@ async def get_quizzes(
             selectinload(models.Quiz.owner),
             selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
-        .where(models.Quiz.visibility == visibility)
+        .where(models.Quiz.visibility == Visibility.PUBLIC)
         .order_by(models.Quiz.created_at.desc())
         .offset(skip)
         .limit(limit)
