@@ -6,7 +6,13 @@ from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from schemas.quiz import PaginatedQuizResponse, QuizCreate, QuizPrivate, QuizPublic
+from schemas.quiz import (
+    PaginatedQuizResponse,
+    QuizCreate,
+    QuizPrivate,
+    QuizPublic,
+    QuizUpdate,
+)
 from utils.auth import AccessToken, CurrentUser, get_current_user
 from utils.enums import Visibility
 from utils.error_messages import QuizErrors
@@ -93,3 +99,30 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
     sort_quiz_questions(new_quiz.questions)
 
     return new_quiz
+
+
+@router.patch("/{quiz_id}", response_model=QuizPrivate)
+async def update_quiz(
+    quiz_id: int, quiz_update: QuizUpdate, current_user: CurrentUser, db: DBSession
+):
+    result = await db.execute(select(models.Quiz).where(models.Quiz.id == quiz_id))
+    quiz = result.scalars().first()
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    if not can_user_do(current_user, Action.EDIT, quiz.owner_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ,
+        )
+
+    update_data = quiz_update.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(quiz, key, value)
+
+    await db.commit()
+    await db.refresh(quiz, attribute_names=["owner"])
+
+    return quiz

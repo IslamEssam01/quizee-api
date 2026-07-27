@@ -51,7 +51,7 @@ class QuizCreate(BaseModel):
 class QuizUpdate(BaseModel):
     title: str | None = Field(min_length=1, max_length=200, default=None)
     description: str | None = Field(min_length=1, default=None)
-    visibility: Visibility | None
+    visibility: Visibility | None = Field(default=None)
     pass_threshold: int | None = Field(ge=1, le=100, default=None)
     questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
 

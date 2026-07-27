@@ -1,3 +1,4 @@
+import copy
 from typing import Any, TypedDict
 
 import pytest
@@ -241,3 +242,76 @@ async def test_get_quiz_by_id(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     check_quiz_matches(data, user, quiz, True)
+
+
+@pytest.mark.anyio
+async def test_update_quiz_not_found(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    response = await client.patch(
+        "/api/quizzes/999",
+        json={"title": "new_title"},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_update_quiz_unathorized(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@test.com", username="user2")
+    token2, _ = await login_user(client, email="user2@test.com")
+
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    response = await client.patch(
+        f"/api/quizzes/{data['id']}",
+        json={"title": "new_title"},
+        headers=auth_header(token2),
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ
+
+
+@pytest.mark.anyio
+async def test_update_quiz_successfully(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    questions: list[TestQuestion] = quiz["questions"][:-1]
+    questions[1]["position"] = 3
+    questions.append(
+        {
+            "text": "test question",
+            "position": 1,
+            "answers": [
+                {"text": "answer 1", "is_correct": True},
+                {"text": "answer 2", "is_correct": False},
+            ],
+            "type": "mcq",
+        }
+    )
+
+    new_quiz = copy.deepcopy(quiz)
+    new_quiz["questions"] = questions
+    new_quiz["title"] = "new_title"
+
+    response = await client.patch(
+        f"/api/quizzes/{data['id']}",
+        json={"questions": questions, "title": "new_title"},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    check_quiz_matches(data, user, new_quiz, False)

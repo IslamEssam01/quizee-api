@@ -19,3 +19,5 @@ class QuizErrors:
     NO_CORRECT_ANSWER = "A question has no correct answer provided"
     QUIZ_NOT_FOUND = "Quiz not found"
     NOT_AUTHORIZED_TO_VIEW_QUIZ = "Not authorized to view this quiz"
+    NOT_AUTHORIZED_TO_UPDATE_QUIZ = "Not authorized to update this quiz"
+    NOT_AUTHORIZED_TO_DELETE_QUIZ = "Not authorized to delete this quiz"
