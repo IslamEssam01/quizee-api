@@ -74,12 +74,12 @@ async def get_current_user_quizzes(
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
     visibility: Annotated[Visibility | None, Query()] = None,
 ):
-    count_reslut = await db.execute(
+    count_result = await db.execute(
         select(func.count())
         .select_from(models.Quiz)
         .where(models.Quiz.owner_id == current_user.id)
     )
-    total = count_reslut.scalar() or 0
+    total = count_result.scalar() or 0
 
     stmt = (
         select(models.Quiz)
@@ -131,13 +131,13 @@ async def get_user_quizzes(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
 ):
-    count_reslut = await db.execute(
+    count_result = await db.execute(
         select(func.count())
         .select_from(models.Quiz)
         .where(models.Quiz.visibility == Visibility.PUBLIC)
         .where(models.Quiz.owner_id == user_id)
     )
-    total = count_reslut.scalar() or 0
+    total = count_result.scalar() or 0
 
     result = await db.execute(
         select(models.Quiz)

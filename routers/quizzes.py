@@ -21,12 +21,12 @@ async def get_quizzes(
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 10,
 ):
-    count_reslut = await db.execute(
+    count_result = await db.execute(
         select(func.count())
         .select_from(models.Quiz)
         .where(models.Quiz.visibility == Visibility.PUBLIC)
     )
-    total = count_reslut.scalar() or 0
+    total = count_result.scalar() or 0
 
     result = await db.execute(
         select(models.Quiz)
