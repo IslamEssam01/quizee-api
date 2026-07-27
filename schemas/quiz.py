@@ -1,8 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from models.question import QuestionType
 from models.quiz import Visibility
-from schemas.user import UserPrivate
+from schemas.base import BaseResponse
+from schemas.user import UserPrivate, UserPublic
 
 
 class AnswerCreate(BaseModel):
@@ -10,9 +11,14 @@ class AnswerCreate(BaseModel):
     is_correct: bool
 
 
-class AnswerPrivate(BaseModel):
+class AnswerPrivate(BaseResponse):
     text: str
     is_correct: bool
+    question_id: int
+
+
+class AnswerPublic(BaseResponse):
+    text: str
     question_id: int
 
 
@@ -23,12 +29,20 @@ class QuestionCreate(BaseModel):
     answers: list[AnswerCreate] = Field(min_length=2)
 
 
-class QuestionPrivate(BaseModel):
+class QuestionPrivate(BaseResponse):
     text: str
     type: QuestionType
     position: int
     quiz_id: int
     answers: list[AnswerPrivate]
+
+
+class QuestionPublic(BaseResponse):
+    text: str
+    type: QuestionType
+    position: int
+    quiz_id: int
+    answers: list[AnswerPublic]
 
 
 class QuizCreate(BaseModel):
@@ -39,7 +53,7 @@ class QuizCreate(BaseModel):
     questions: list[QuestionCreate] = Field(min_length=1)
 
 
-class QuizPrivate(BaseModel):
+class QuizPrivate(BaseResponse):
     id: int
     title: str
     description: str
@@ -48,3 +62,22 @@ class QuizPrivate(BaseModel):
     owner_id: int
     owner: UserPrivate
     questions: list[QuestionPrivate]
+
+
+class QuizPublic(BaseResponse):
+    id: int
+    title: str
+    description: str
+    visibility: Visibility
+    pass_threshold: int
+    owner_id: int
+    owner: UserPublic
+    questions: list[QuestionPublic]
+
+
+class PaginatedQuizResponse(BaseModel):
+    quizzes: list[QuizPublic]
+    skip: int
+    limit: int
+    total: int
+    has_more: bool
