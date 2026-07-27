@@ -108,26 +108,22 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
         owner_id=current_user.id,
     )
 
-    db.add(new_quiz)
-    await db.flush()
-
     for question in quiz.questions:
         new_question = models.Question(
             text=question.text,
             type=question.type,
             position=question.position,
-            quiz_id=new_quiz.id,
-        )
-        db.add(new_question)
-        await db.flush()
-        for answer in question.answers:
-            db.add(
+            answers=[
                 models.AnswerOption(
                     text=answer.text,
                     is_correct=answer.is_correct,
-                    question_id=new_question.id,
                 )
-            )
+                for answer in question.answers
+            ],
+        )
+        new_quiz.questions.append(new_question)
+
+    db.add(new_quiz)
 
     await db.commit()
 
@@ -140,5 +136,4 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
         .where(models.Quiz.id == new_quiz.id)
     )
 
-    quiz_ = result.scalars().first()
-    return quiz_
+    return result.scalars().first()
