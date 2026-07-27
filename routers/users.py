@@ -8,7 +8,6 @@ from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from models.quiz import Visibility
 from schemas.quiz import PaginatedQuizResponse, QuizPublic
 from schemas.user import (
     ChangePasswordRequest,
@@ -18,6 +17,7 @@ from schemas.user import (
     UserUpdate,
 )
 from utils.auth import CurrentUser, hash_password, hash_random_token, verify_password
+from utils.enums import Visibility
 from utils.error_messages import UserErrors
 from utils.success_messages import UserMessages
 
@@ -85,7 +85,6 @@ async def get_current_user_quizzes(
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
-            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
         .where(models.Quiz.owner_id == current_user.id)
     )
@@ -98,6 +97,9 @@ async def get_current_user_quizzes(
     )
 
     quizzes = result.scalars().all()
+
+    for quiz in quizzes:
+        quiz.questions.sort(key=lambda question: question["position"])
 
     has_more = skip + len(quizzes) < total
 
@@ -143,7 +145,6 @@ async def get_user_quizzes(
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
-            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
         .where(
             models.Quiz.visibility == Visibility.PUBLIC,
@@ -155,6 +156,8 @@ async def get_user_quizzes(
     )
 
     quizzes = result.scalars().all()
+    for quiz in quizzes:
+        quiz.questions.sort(key=lambda question: question["position"])
 
     has_more = skip + len(quizzes) < total
 

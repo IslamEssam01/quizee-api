@@ -3,9 +3,8 @@ from typing import Any, TypedDict
 import pytest
 from httpx import AsyncClient
 
-import models
-from models.question import QuestionType
 from tests.conftest import auth_header, create_test_user, login_user
+from utils.enums import QuestionType
 from utils.error_messages import QuizErrors
 
 

@@ -12,17 +12,15 @@ from sqlalchemy import (
     Text,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
+from schemas.quiz import QuestionPrivate
+from utils.enums import Visibility
 
 if TYPE_CHECKING:
-    from models.question import Question
     from models.user import User
-
-
-class Visibility(enum.StrEnum):
-    PUBLIC = "public"
 
 
 class Quiz(Base):
@@ -44,6 +42,7 @@ class Quiz(Base):
         nullable=False,
         default=Visibility.PUBLIC,
     )
+    questions: Mapped[list[QuestionPrivate]] = mapped_column(JSONB, nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -58,8 +57,3 @@ class Quiz(Base):
     )
 
     owner: Mapped["User"] = relationship(back_populates="quizzes")
-    questions: Mapped[list["Question"]] = relationship(
-        back_populates="quiz",
-        cascade="all, delete-orphan",
-        order_by="Question.position",
-    )

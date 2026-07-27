@@ -1,9 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, Field
 
-from models.question import QuestionType
-from models.quiz import Visibility
 from schemas.base import BaseResponse
 from schemas.user import UserPrivate, UserPublic
+from utils.enums import QuestionType, Visibility
 
 
 class AnswerCreate(BaseModel):
@@ -14,12 +13,10 @@ class AnswerCreate(BaseModel):
 class AnswerPrivate(BaseResponse):
     text: str
     is_correct: bool
-    question_id: int
 
 
 class AnswerPublic(BaseResponse):
     text: str
-    question_id: int
 
 
 class QuestionCreate(BaseModel):
@@ -33,7 +30,6 @@ class QuestionPrivate(BaseResponse):
     text: str
     type: QuestionType
     position: int
-    quiz_id: int
     answers: list[AnswerPrivate]
 
 
@@ -41,7 +37,6 @@ class QuestionPublic(BaseResponse):
     text: str
     type: QuestionType
     position: int
-    quiz_id: int
     answers: list[AnswerPublic]
 
 
@@ -51,6 +46,14 @@ class QuizCreate(BaseModel):
     visibility: Visibility
     pass_threshold: int = Field(ge=1, le=100)
     questions: list[QuestionCreate] = Field(min_length=1)
+
+
+class QuizUpdate(BaseModel):
+    title: str | None = Field(min_length=1, max_length=200, default=None)
+    description: str | None = Field(min_length=1, default=None)
+    visibility: Visibility | None
+    pass_threshold: int | None = Field(ge=1, le=100, default=None)
+    questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
 
 
 class QuizPrivate(BaseResponse):

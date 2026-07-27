@@ -1,3 +1,4 @@
+from hmac import new
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -6,9 +7,9 @@ from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from models.quiz import Visibility
 from schemas.quiz import PaginatedQuizResponse, QuizCreate, QuizPrivate, QuizPublic
 from utils.auth import AccessToken, CurrentUser, get_current_user
+from utils.enums import Visibility
 from utils.error_messages import QuizErrors
 from utils.permission import Action, can_user_do
 
@@ -32,7 +33,6 @@ async def get_quizzes(
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
-            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
         .where(models.Quiz.visibility == Visibility.PUBLIC)
         .order_by(models.Quiz.created_at.desc())
@@ -41,6 +41,9 @@ async def get_quizzes(
     )
 
     quizzes = result.scalars().all()
+
+    for quiz in quizzes:
+        quiz.questions.sort(key= lambda question: question["position"])
 
     has_more = skip + len(quizzes) < total
 
@@ -63,7 +66,6 @@ async def get_quiz(
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
-            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
         )
         .where(models.Quiz.id == quiz_id)
     )
@@ -88,6 +90,8 @@ async def get_quiz(
             detail=QuizErrors.NOT_AUTHORIZED_TO_VIEW_QUIZ,
         )
 
+    quiz.questions.sort(key=lambda question: question["position"])
+
     return quiz
 
 
@@ -106,34 +110,14 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
         visibility=quiz.visibility,
         pass_threshold=quiz.pass_threshold,
         owner_id=current_user.id,
+        questions=[question.model_dump(mode="json") for question in quiz.questions],
     )
-
-    for question in quiz.questions:
-        new_question = models.Question(
-            text=question.text,
-            type=question.type,
-            position=question.position,
-            answers=[
-                models.AnswerOption(
-                    text=answer.text,
-                    is_correct=answer.is_correct,
-                )
-                for answer in question.answers
-            ],
-        )
-        new_quiz.questions.append(new_question)
 
     db.add(new_quiz)
 
     await db.commit()
+    await db.refresh(new_quiz, attribute_names=["owner"])
 
-    result = await db.execute(
-        select(models.Quiz)
-        .options(
-            selectinload(models.Quiz.owner),
-            selectinload(models.Quiz.questions).selectinload(models.Question.answers),
-        )
-        .where(models.Quiz.id == new_quiz.id)
-    )
+    new_quiz.questions.sort(key=lambda question: question["position"])
 
-    return result.scalars().first()
+    return new_quiz
