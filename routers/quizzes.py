@@ -7,10 +7,9 @@ from sqlalchemy.orm import selectinload
 import models
 from database import DBSession
 from schemas.quiz import (
-    PaginatedQuizResponse,
+    PaginatedQuizPublicResponse,
     QuizCreate,
     QuizPrivate,
-    QuizPublic,
     QuizUpdate,
 )
 from utils.auth import AccessToken, CurrentUser, get_current_user
@@ -22,7 +21,7 @@ from utils.quizzes import get_quizzes_with_options, sort_quiz_questions
 router = APIRouter()
 
 
-@router.get("", response_model=PaginatedQuizResponse)
+@router.get("", response_model=PaginatedQuizPublicResponse)
 async def get_quizzes(
     db: DBSession,
     skip: Annotated[int, Query(ge=0)] = 0,
@@ -33,7 +32,7 @@ async def get_quizzes(
     )
 
 
-@router.get("/{quiz_id}", response_model=QuizPublic)
+@router.get("/{quiz_id}", response_model=QuizPrivate)
 async def get_quiz(
     quiz_id: int,
     db: DBSession,

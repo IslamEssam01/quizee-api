@@ -7,7 +7,7 @@ from sqlalchemy import func, select, update
 
 import models
 from database import DBSession
-from schemas.quiz import PaginatedQuizResponse
+from schemas.quiz import PaginatedQuizPrivateResponse, PaginatedQuizPublicResponse
 from schemas.user import (
     ChangePasswordRequest,
     UserCreate,
@@ -66,7 +66,7 @@ async def get_current_user(current_user: CurrentUser):
     return current_user
 
 
-@router.get("/me/quizzes", response_model=PaginatedQuizResponse)
+@router.get("/me/quizzes", response_model=PaginatedQuizPrivateResponse)
 async def get_current_user_quizzes(
     current_user: CurrentUser,
     db: DBSession,
@@ -75,7 +75,12 @@ async def get_current_user_quizzes(
     visibility: Annotated[Visibility | None, Query()] = None,
 ):
     return await get_quizzes_with_options(
-        db=db, skip=skip, limit=limit, owner_id=current_user.id, visibility=visibility
+        db=db,
+        skip=skip,
+        limit=limit,
+        owner_id=current_user.id,
+        visibility=visibility,
+        is_public=False,
     )
 
 
@@ -93,7 +98,7 @@ async def get_user(user_id: int, db: DBSession):
     return user
 
 
-@router.get("/{user_id}/quizzes", response_model=PaginatedQuizResponse)
+@router.get("/{user_id}/quizzes", response_model=PaginatedQuizPublicResponse)
 async def get_user_quizzes(
     user_id: int,
     db: DBSession,

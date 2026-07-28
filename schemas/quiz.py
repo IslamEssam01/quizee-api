@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 
-from schemas.base import BaseResponse
+from schemas.base import BaseResponse, PaginatedResponse
 from schemas.user import UserPrivate, UserPublic
 from utils.enums import QuestionType, Visibility
 
@@ -78,9 +78,9 @@ class QuizPublic(BaseResponse):
     questions: list[QuestionPublic]
 
 
-class PaginatedQuizResponse(BaseModel):
+class PaginatedQuizPublicResponse(PaginatedResponse):
     quizzes: list[QuizPublic]
-    skip: int
-    limit: int
-    total: int
-    has_more: bool
+
+
+class PaginatedQuizPrivateResponse(PaginatedResponse):
+    quizzes: list[QuizPrivate]

@@ -5,7 +5,12 @@ from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
-from schemas.quiz import PaginatedQuizResponse, QuizPublic
+from schemas.quiz import (
+    PaginatedQuizPrivateResponse,
+    PaginatedQuizPublicResponse,
+    QuizPrivate,
+    QuizPublic,
+)
 from utils.enums import Visibility
 
 
@@ -19,6 +24,7 @@ async def get_quizzes_with_options(
     limit: int,
     owner_id: int | None = None,
     visibility: Visibility | None = None,
+    is_public: bool = True,
 ):
     where_filters: list[ColumnElement[bool]] = []
     if visibility:
@@ -48,8 +54,17 @@ async def get_quizzes_with_options(
 
     has_more = skip + len(quizzes) < total
 
-    return PaginatedQuizResponse(
-        quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
+    if is_public:
+        return PaginatedQuizPublicResponse(
+            quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
+            skip=skip,
+            limit=limit,
+            total=total,
+            has_more=has_more,
+        )
+
+    return PaginatedQuizPrivateResponse(
+        quizzes=[QuizPrivate.model_validate(quiz) for quiz in quizzes],
         skip=skip,
         limit=limit,
         total=total,

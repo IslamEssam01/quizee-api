@@ -182,8 +182,8 @@ async def test_get_current_user_quizzes(client: AsyncClient):
     assert data["has_more"] == False
     assert len(data["quizzes"]) == 2
 
-    check_quiz_matches(data["quizzes"][0], user, quiz1, True)
-    check_quiz_matches(data["quizzes"][1], user, quiz2, True)
+    check_quiz_matches(data["quizzes"][0], user, quiz1, False)
+    check_quiz_matches(data["quizzes"][1], user, quiz2, False)
 
 
 @pytest.mark.anyio
