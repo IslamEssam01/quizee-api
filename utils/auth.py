@@ -20,6 +20,9 @@ from utils.error_messages import AuthErrors
 password_hash = PasswordHash.recommended()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/users/swagger-login")
+oauth2_scheme_optional = OAuth2PasswordBearer(
+    tokenUrl="/api/users/swagger-login", auto_error=False
+)
 
 
 def generate_random_token():
@@ -79,6 +82,7 @@ current_user_error_headers = {"WWW-Authenticate": "Bearer"}
 
 
 AccessToken = Annotated[str, Depends(oauth2_scheme)]
+OptionalAccessToken = Annotated[str | None, Depends(oauth2_scheme_optional)]
 
 
 async def get_current_user(token: AccessToken, db: DBSession):
@@ -91,7 +95,7 @@ async def get_current_user(token: AccessToken, db: DBSession):
         )
     try:
         user_id_int = int(user_id)
-    except TypeError, ValueError:
+    except (TypeError, ValueError):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=AuthErrors.INVALID_TOKEN,

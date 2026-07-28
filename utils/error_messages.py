@@ -21,3 +21,4 @@ class QuizErrors:
     NOT_AUTHORIZED_TO_VIEW_QUIZ = "Not authorized to view this quiz"
     NOT_AUTHORIZED_TO_UPDATE_QUIZ = "Not authorized to update this quiz"
     NOT_AUTHORIZED_TO_DELETE_QUIZ = "Not authorized to delete this quiz"
+    ATTEMPT_MUST_HAVE_USER_OR_NAME = "An attempt must have a user or a taker name"

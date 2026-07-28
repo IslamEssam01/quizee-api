@@ -8,11 +8,14 @@ import models
 from database import DBSession
 from schemas.quiz import (
     PaginatedQuizPublicResponse,
+    QuizAttempt,
     QuizCreate,
     QuizPrivate,
+    QuizPublic,
     QuizUpdate,
+    StartAttemptRequest,
 )
-from utils.auth import AccessToken, CurrentUser, get_current_user
+from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
 from utils.error_messages import QuizErrors
 from utils.permission import Action, can_user_do
@@ -36,7 +39,7 @@ async def get_quizzes(
 async def get_quiz(
     quiz_id: int,
     db: DBSession,
-    token: AccessToken | None = None,
+    token: OptionalAccessToken = None,
 ):
     result = await db.execute(
         select(models.Quiz)
@@ -153,3 +156,50 @@ async def delete_quiz(quiz_id: int, current_user: CurrentUser, db: DBSession):
 
     await db.delete(quiz)
     await db.commit()
+
+
+@router.post("/{quiz_id}/start-attempt", response_model=QuizPublic)
+async def start_attempt(
+    quiz_id: int,
+    db: DBSession,
+    request_data: StartAttemptRequest | None = None,
+    token: OptionalAccessToken = None,
+):
+    # TODO: have a check for taking private quizzes
+    result = await db.execute(
+        select(models.Quiz)
+        .options(selectinload(models.Quiz.owner))
+        .where(models.Quiz.id == quiz_id)
+    )
+    quiz = result.scalars().first()
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    sort_quiz_questions(quiz.questions)
+
+    user: models.User | None = None
+    if token:
+        try:
+            user = await get_current_user(token, db)
+        except:
+            pass
+
+    if not user and (not request_data or not request_data.taker_name):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=QuizErrors.ATTEMPT_MUST_HAVE_USER_OR_NAME,
+        )
+
+    db.add(
+        models.Attempt(
+            quiz_id=quiz.id,
+            user_id=user.id if user else None,
+            quiz_json=QuizAttempt.model_validate(quiz).model_dump(mode="json"),
+            taker_name=request_data.taker_name if request_data else None,
+        )
+    )
+    await db.commit()
+
+    return quiz

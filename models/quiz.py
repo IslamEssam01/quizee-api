@@ -15,10 +15,10 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base
-from schemas.quiz import QuestionPrivate
 from utils.enums import Visibility
 
 if TYPE_CHECKING:
+    from models.attempt import Attempt
     from models.user import User
 
 
@@ -56,3 +56,4 @@ class Quiz(Base):
     )
 
     owner: Mapped["User"] = relationship(back_populates="quizzes")
+    attempts: Mapped[list["Attempt"]] = relationship(back_populates="quiz")

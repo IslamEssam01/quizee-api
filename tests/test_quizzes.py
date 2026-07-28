@@ -374,3 +374,70 @@ async def test_delete_quiz_successfully(client: AsyncClient):
 
     assert response.status_code == 404
     assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_start_attempt_for_unknown_quiz(client: AsyncClient):
+    response = await client.post(
+        "/api/quizzes/999/start-attempt",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_start_attempt_fail(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == QuizErrors.ATTEMPT_MUST_HAVE_USER_OR_NAME
+
+
+@pytest.mark.anyio
+async def test_start_attempt_with_user(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@test.com", username="user 2")
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt",
+        headers=auth_header(token2),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    check_quiz_matches(data, user, quiz, True)
+
+
+@pytest.mark.anyio
+async def test_start_attempt_with_taker_name(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", json={"taker_name": "taker"}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    check_quiz_matches(data, user, quiz, True)

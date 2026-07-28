@@ -56,6 +56,16 @@ class QuizUpdate(BaseModel):
     questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
 
 
+class QuizAttempt(BaseResponse):
+    id: int
+    title: str
+    description: str
+    visibility: Visibility
+    pass_threshold: int
+    owner_id: int
+    questions: list[QuestionPrivate]
+
+
 class QuizPrivate(BaseResponse):
     id: int
     title: str
@@ -84,3 +94,7 @@ class PaginatedQuizPublicResponse(PaginatedResponse):
 
 class PaginatedQuizPrivateResponse(PaginatedResponse):
     quizzes: list[QuizPrivate]
+
+
+class StartAttemptRequest(BaseModel):
+    taker_name: str | None = Field(default=None)
