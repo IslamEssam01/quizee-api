@@ -23,7 +23,9 @@ class Attempt(Base):
     )
     taker_name: Mapped[str | None] = mapped_column(String(50), nullable=True)
     quiz_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
-    answers_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    answers_json: Mapped[list[dict[str, Any]] | None] = mapped_column(
+        JSONB, nullable=True
+    )
     score: Mapped[float | None] = mapped_column(Float, nullable=True)
     passed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
     started_at: Mapped[datetime] = mapped_column(

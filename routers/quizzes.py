@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -8,6 +9,7 @@ import models
 from database import DBSession
 from schemas.quiz import (
     PaginatedQuizPublicResponse,
+    QuestionPrivate,
     QuizAttempt,
     QuizCreate,
     QuizPrivate,
@@ -15,13 +17,17 @@ from schemas.quiz import (
     QuizUpdate,
     StartAttemptRequest,
     StartAttemptResponse,
+    SubmitAttemptRequest,
+    SubmitAttemptResponse,
 )
 from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
 from utils.error_messages import QuizErrors
 from utils.permission import Action, can_user_do
 from utils.quizzes import (
+    calculate_score,
     get_quizzes_with_options,
+    is_attempt_passed,
     sort_quiz_questions,
     validate_quiz_questions,
 )
@@ -199,3 +205,67 @@ async def start_attempt(
     await db.refresh(attempt)
 
     return StartAttemptResponse(id=attempt.id, quiz=QuizPublic.model_validate(quiz))
+
+
+@router.post("/submit-attempt/{attempt_id}", response_model=SubmitAttemptResponse)
+async def submit_attempt(
+    attempt_id: int,
+    db: DBSession,
+    request_data: SubmitAttemptRequest | None = None,
+    token: OptionalAccessToken = None,
+):
+    result = await db.execute(
+        select(models.Attempt).where(models.Attempt.id == attempt_id)
+    )
+    attempt = result.scalars().first()
+
+    if not attempt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.ATTEMPT_NOT_FOUND
+        )
+
+    user = None
+    if token:
+        try:
+            user = await get_current_user(token, db)
+        except:
+            pass
+
+    if attempt.user_id and (not user or not user.id == attempt.user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_SUBMIT_ATTEMPT,
+        )
+
+    if not attempt.quiz_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    score = 0
+    passed = False
+
+    if request_data:
+        score = calculate_score(
+            questions=[
+                QuestionPrivate.model_validate(question)
+                for question in attempt.quiz_json["questions"]
+            ],
+            answers=request_data.answers,
+        )
+
+        passed = is_attempt_passed(QuizAttempt.model_validate(attempt.quiz_json), score)
+
+    attempt.score = score
+    attempt.passed = passed
+    attempt.taken_at = datetime.now(UTC)
+    attempt.answers_json = (
+        [answer.model_dump(mode="json") for answer in request_data.answers]
+        if request_data
+        else None
+    )
+
+    await db.commit()
+    await db.refresh(attempt)
+
+    return attempt

@@ -7,9 +7,12 @@ from sqlalchemy.orm import selectinload
 import models
 from database import DBSession
 from schemas.quiz import (
+    AttemptAnswer,
     PaginatedQuizPrivateResponse,
     PaginatedQuizPublicResponse,
     QuestionCreate,
+    QuestionPrivate,
+    QuizAttempt,
     QuizPrivate,
     QuizPublic,
 )
@@ -99,3 +102,29 @@ async def get_quizzes_with_options(
         total=total,
         has_more=has_more,
     )
+
+
+def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswer]):
+    score = 0
+    for answer in answers:
+        question = next(
+            (question for question in questions if question.id == answer.question_id),
+            None,
+        )
+        if not question:
+            continue
+        correct_answer = next(
+            (answer for answer in question.answers if answer.is_correct), None
+        )
+        if not correct_answer:
+            continue
+        if correct_answer.id == answer.answer_id:
+            score += 1
+
+    return score
+
+
+def is_attempt_passed(quiz: QuizAttempt, score: float):
+    total = len(quiz.questions)
+
+    return (score / total) * 100 >= quiz.pass_threshold

@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, Field
 
 from schemas.base import BaseResponse, PaginatedResponse
@@ -109,3 +111,25 @@ class StartAttemptRequest(BaseModel):
 class StartAttemptResponse(BaseResponse):
     id: int
     quiz: QuizPublic
+
+
+class AttemptAnswer(BaseModel):
+    question_id: int
+    answer_id: int
+
+
+class SubmitAttemptRequest(BaseModel):
+    answers: list[AttemptAnswer]
+
+
+class SubmitAttemptResponse(BaseResponse):
+    id: int
+    quiz_id: int
+    user_id: int | None
+    taker_name: str | None
+    started_at: datetime
+    taken_at: datetime
+    quiz_json: QuizAttempt
+    answers_json: list[AttemptAnswer] | None
+    score: int
+    passed: bool

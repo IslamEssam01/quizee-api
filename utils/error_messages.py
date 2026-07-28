@@ -24,3 +24,5 @@ class QuizErrors:
     NOT_AUTHORIZED_TO_UPDATE_QUIZ = "Not authorized to update this quiz"
     NOT_AUTHORIZED_TO_DELETE_QUIZ = "Not authorized to delete this quiz"
     ATTEMPT_MUST_HAVE_USER_OR_NAME = "An attempt must have a user or a taker name"
+    ATTEMPT_NOT_FOUND = "Attempt not found"
+    NOT_AUTHORIZED_TO_SUBMIT_ATTEMPT = "Not authorized to submit this attempt"
