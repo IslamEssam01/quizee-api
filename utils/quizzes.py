@@ -24,6 +24,47 @@ def sort_quiz_questions(questions: list[dict[str, Any]]):
     questions.sort(key=lambda question: question["position"])
 
 
+async def get_attempts_count(db: DBSession, quiz_id: int) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(models.Attempt)
+        .where(models.Attempt.quiz_id == quiz_id)
+    )
+    return result.scalar() or 0
+
+
+async def get_attempts_count_map(
+    db: DBSession, quiz_ids: list[int]
+) -> dict[int, int]:
+    if not quiz_ids:
+        return {}
+
+    result = await db.execute(
+        select(models.Attempt.quiz_id, func.count())
+        .where(models.Attempt.quiz_id.in_(quiz_ids))
+        .group_by(models.Attempt.quiz_id)
+    )
+    return dict(result.all())
+
+
+async def get_quiz_attempts(db: DBSession, quiz_id: int) -> list["models.Attempt"]:
+    result = await db.execute(
+        select(models.Attempt)
+        .where(models.Attempt.quiz_id == quiz_id)
+        .order_by(models.Attempt.started_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+def calculate_pass_rate(attempts: list["models.Attempt"]) -> float:
+    submitted = [attempt for attempt in attempts if attempt.taken_at is not None]
+    if not submitted:
+        return 0.0
+
+    passed = sum(1 for attempt in submitted if attempt.passed)
+    return (passed / len(submitted)) * 100
+
+
 def validate_quiz_questions(questions: list[QuestionCreate]):
     question_ids: set[int] = set()
     for question in questions:
@@ -85,10 +126,16 @@ async def get_quizzes_with_options(
         sort_quiz_questions(quiz.questions)
 
     has_more = skip + len(quizzes) < total
+    attempts_count_map = await get_attempts_count_map(db, [quiz.id for quiz in quizzes])
 
     if is_public:
         return PaginatedQuizPublicResponse(
-            quizzes=[QuizPublic.model_validate(quiz) for quiz in quizzes],
+            quizzes=[
+                QuizPublic.model_validate(quiz).model_copy(
+                    update={"attempts_count": attempts_count_map.get(quiz.id, 0)}
+                )
+                for quiz in quizzes
+            ],
             skip=skip,
             limit=limit,
             total=total,
@@ -96,7 +143,12 @@ async def get_quizzes_with_options(
         )
 
     return PaginatedQuizPrivateResponse(
-        quizzes=[QuizPrivate.model_validate(quiz) for quiz in quizzes],
+        quizzes=[
+            QuizPrivate.model_validate(quiz).model_copy(
+                update={"attempts_count": attempts_count_map.get(quiz.id, 0)}
+            )
+            for quiz in quizzes
+        ],
         skip=skip,
         limit=limit,
         total=total,

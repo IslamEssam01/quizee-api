@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 import models
 from database import DBSession
 from schemas.quiz import (
+    AttemptSummary,
     PaginatedQuizPublicResponse,
     QuestionPrivate,
     QuizAttempt,
@@ -25,7 +26,10 @@ from utils.enums import Visibility
 from utils.error_messages import QuizErrors
 from utils.permission import Action, can_user_do
 from utils.quizzes import (
+    calculate_pass_rate,
     calculate_score,
+    get_attempts_count,
+    get_quiz_attempts,
     get_quizzes_with_options,
     is_attempt_passed,
     sort_quiz_questions,
@@ -46,7 +50,7 @@ async def get_quizzes(
     )
 
 
-@router.get("/{quiz_id}", response_model=QuizPrivate)
+@router.get("/{quiz_id}", response_model=QuizPublic | QuizPrivate)
 async def get_quiz(
     quiz_id: int,
     db: DBSession,
@@ -73,9 +77,9 @@ async def get_quiz(
         except:
             pass
 
-    if quiz.visibility != Visibility.PUBLIC and (
-        not user or not can_user_do(user, Action.VIEW, quiz.owner_id)
-    ):
+    can_view_private = bool(user) and can_user_do(user, Action.VIEW, quiz.owner_id)
+
+    if quiz.visibility != Visibility.PUBLIC and not can_view_private:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=QuizErrors.NOT_AUTHORIZED_TO_VIEW_QUIZ,
@@ -83,7 +87,20 @@ async def get_quiz(
 
     sort_quiz_questions(quiz.questions)
 
-    return quiz
+    if not can_view_private:
+        attempts_count = await get_attempts_count(db, quiz.id)
+        return QuizPublic.model_validate(quiz).model_copy(
+            update={"attempts_count": attempts_count}
+        )
+
+    attempts = await get_quiz_attempts(db, quiz.id)
+    return QuizPrivate.model_validate(quiz).model_copy(
+        update={
+            "attempts_count": len(attempts),
+            "pass_rate": calculate_pass_rate(attempts),
+            "attempts_summary": [AttemptSummary.model_validate(a) for a in attempts],
+        }
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=QuizPrivate)

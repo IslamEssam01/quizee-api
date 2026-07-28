@@ -80,7 +80,7 @@ async def create_test_quiz(user: Any):
 
 
 def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
-    assert data.keys() == {
+    base_keys = {
         "id",
         "title",
         "owner_id",
@@ -89,7 +89,17 @@ def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
         "visibility",
         "questions",
         "pass_threshold",
+        "attempts_count",
     }
+
+    if is_public:
+        assert data.keys() == base_keys
+    else:
+        assert data.keys() == base_keys | {"pass_rate", "attempts_summary"}
+        assert data["pass_rate"] == 0.0
+        assert data["attempts_summary"] == []
+
+    assert data["attempts_count"] == 0
 
     assert isinstance(data["questions"], list)
     assert data["title"] == quiz["title"]

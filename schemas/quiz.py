@@ -74,6 +74,16 @@ class QuizAttempt(BaseResponse):
     questions: list[QuestionPrivate]
 
 
+class AttemptSummary(BaseResponse):
+    id: int
+    user_id: int | None
+    taker_name: str | None
+    started_at: datetime
+    taken_at: datetime | None
+    score: float | None
+    passed: bool | None
+
+
 class QuizPrivate(BaseResponse):
     id: int
     title: str
@@ -83,6 +93,9 @@ class QuizPrivate(BaseResponse):
     owner_id: int
     owner: UserPrivate
     questions: list[QuestionPrivate]
+    attempts_count: int = 0
+    pass_rate: float = 0.0
+    attempts_summary: list[AttemptSummary] = Field(default_factory=list)
 
 
 class QuizPublic(BaseResponse):
@@ -94,6 +107,7 @@ class QuizPublic(BaseResponse):
     owner_id: int
     owner: UserPublic
     questions: list[QuestionPublic]
+    attempts_count: int = 0
 
 
 class PaginatedQuizPublicResponse(PaginatedResponse):
