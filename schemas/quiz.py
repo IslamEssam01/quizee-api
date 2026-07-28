@@ -6,20 +6,24 @@ from utils.enums import QuestionType, Visibility
 
 
 class AnswerCreate(BaseModel):
+    id: int
     text: str = Field(min_length=1)
     is_correct: bool
 
 
 class AnswerPrivate(BaseResponse):
+    id: int
     text: str
     is_correct: bool
 
 
 class AnswerPublic(BaseResponse):
+    id: int
     text: str
 
 
 class QuestionCreate(BaseModel):
+    id: int
     text: str = Field(min_length=1)
     type: QuestionType
     position: int = Field(ge=1)
@@ -27,6 +31,7 @@ class QuestionCreate(BaseModel):
 
 
 class QuestionPrivate(BaseResponse):
+    id: int
     text: str
     type: QuestionType
     position: int
@@ -34,6 +39,7 @@ class QuestionPrivate(BaseResponse):
 
 
 class QuestionPublic(BaseResponse):
+    id: int
     text: str
     type: QuestionType
     position: int

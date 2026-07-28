@@ -17,6 +17,8 @@ class AuthErrors:
 
 class QuizErrors:
     NO_CORRECT_ANSWER = "A question has no correct answer provided"
+    DUPLICATE_QUESTION = "A question with duplicate id exists"
+    DUPLICATE_ANSWER = "An answer with duplicate id exists"
     QUIZ_NOT_FOUND = "Quiz not found"
     NOT_AUTHORIZED_TO_VIEW_QUIZ = "Not authorized to view this quiz"
     NOT_AUTHORIZED_TO_UPDATE_QUIZ = "Not authorized to update this quiz"

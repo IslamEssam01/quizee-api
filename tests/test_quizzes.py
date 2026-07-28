@@ -11,11 +11,13 @@ from utils.quizzes import sort_quiz_questions
 
 
 class TestAnswer(TypedDict):
+    id: int
     text: str
     is_correct: bool
 
 
 class TestQuestion(TypedDict):
+    id: int
     text: str
     position: int
     type: str
@@ -40,32 +42,35 @@ async def create_test_quiz(user: Any):
         "pass_threshold": 50,
         "questions": [
             {
+                "id": 1,
                 "text": "question 1",
                 "position": 1,
                 "type": QuestionType.MCQ,
                 "answers": [
-                    {"text": "answer 1", "is_correct": True},
-                    {"text": "answer 2", "is_correct": False},
-                    {"text": "answer 3", "is_correct": False},
+                    {"id": 1, "text": "answer 1", "is_correct": True},
+                    {"id": 2, "text": "answer 2", "is_correct": False},
+                    {"id": 3, "text": "answer 3", "is_correct": False},
                 ],
             },
             {
+                "id": 2,
                 "text": "question 2",
                 "position": 2,
                 "type": QuestionType.MCQ,
                 "answers": [
-                    {"text": "answer 1", "is_correct": False},
-                    {"text": "answer 2", "is_correct": True},
-                    {"text": "answer 3", "is_correct": False},
+                    {"id": 1, "text": "answer 1", "is_correct": False},
+                    {"id": 2, "text": "answer 2", "is_correct": True},
+                    {"id": 3, "text": "answer 3", "is_correct": False},
                 ],
             },
             {
+                "id": 3,
                 "text": "question 3",
                 "position": 3,
                 "type": QuestionType.TRUE_OR_FALSE,
                 "answers": [
-                    {"text": "true", "is_correct": True},
-                    {"text": "false", "is_correct": False},
+                    {"id": 1, "text": "true", "is_correct": True},
+                    {"id": 2, "text": "false", "is_correct": False},
                 ],
             },
         ],
@@ -127,6 +132,34 @@ async def test_create_quiz(client: AsyncClient):
 
     data = response.json()
     check_quiz_matches(data, user, quiz, False)
+
+
+@pytest.mark.anyio
+async def test_create_quiz_duplicate_question_id(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
+    quiz["questions"][1]["id"] = quiz["questions"][0]["id"]
+
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == QuizErrors.DUPLICATE_QUESTION
+
+
+@pytest.mark.anyio
+async def test_create_quiz_duplicate_answer_id(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
+    quiz["questions"][0]["answers"][1]["id"] = quiz["questions"][0]["answers"][0]["id"]
+
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == QuizErrors.DUPLICATE_ANSWER
 
 
 @pytest.mark.anyio
@@ -292,11 +325,12 @@ async def test_update_quiz_successfully(client: AsyncClient):
     questions[1]["position"] = 3
     questions.append(
         {
+            "id": 4,
             "text": "test question",
             "position": 1,
             "answers": [
-                {"text": "answer 1", "is_correct": True},
-                {"text": "answer 2", "is_correct": False},
+                {"id": 1, "text": "answer 1", "is_correct": True},
+                {"id": 2, "text": "answer 2", "is_correct": False},
             ],
             "type": "mcq",
         }
@@ -318,6 +352,48 @@ async def test_update_quiz_successfully(client: AsyncClient):
     sort_quiz_questions(new_quiz["questions"])
 
     check_quiz_matches(data, user, new_quiz, False)
+
+
+@pytest.mark.anyio
+async def test_update_quiz_duplicate_question_id(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    questions: list[TestQuestion] = copy.deepcopy(quiz["questions"])
+    questions[1]["id"] = questions[0]["id"]
+
+    response = await client.patch(
+        f"/api/quizzes/{data['id']}",
+        json={"questions": questions},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == QuizErrors.DUPLICATE_QUESTION
+
+
+@pytest.mark.anyio
+async def test_update_quiz_duplicate_answer_id(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+
+    questions: list[TestQuestion] = copy.deepcopy(quiz["questions"])
+    questions[0]["answers"][1]["id"] = questions[0]["answers"][0]["id"]
+
+    response = await client.patch(
+        f"/api/quizzes/{data['id']}",
+        json={"questions": questions},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == QuizErrors.DUPLICATE_ANSWER
 
 
 @pytest.mark.anyio

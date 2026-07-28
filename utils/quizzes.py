@@ -1,5 +1,6 @@
 from typing import Any
 
+from fastapi import HTTPException, status
 from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import selectinload
 
@@ -8,14 +9,42 @@ from database import DBSession
 from schemas.quiz import (
     PaginatedQuizPrivateResponse,
     PaginatedQuizPublicResponse,
+    QuestionCreate,
     QuizPrivate,
     QuizPublic,
 )
 from utils.enums import Visibility
+from utils.error_messages import QuizErrors
 
 
 def sort_quiz_questions(questions: list[dict[str, Any]]):
     questions.sort(key=lambda question: question["position"])
+
+
+def validate_quiz_questions(questions: list[QuestionCreate]):
+    question_ids: set[int] = set()
+    for question in questions:
+        if question.id in question_ids:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=QuizErrors.DUPLICATE_QUESTION,
+            )
+        question_ids.add(question.id)
+
+        answer_ids: set[int] = set()
+        for answer in question.answers:
+            if answer.id in answer_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=QuizErrors.DUPLICATE_ANSWER,
+                )
+            answer_ids.add(answer.id)
+
+        if not any(answer.is_correct for answer in question.answers):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=QuizErrors.NO_CORRECT_ANSWER,
+            )
 
 
 async def get_quizzes_with_options(

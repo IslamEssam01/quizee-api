@@ -20,7 +20,11 @@ from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
 from utils.error_messages import QuizErrors
 from utils.permission import Action, can_user_do
-from utils.quizzes import get_quizzes_with_options, sort_quiz_questions
+from utils.quizzes import (
+    get_quizzes_with_options,
+    sort_quiz_questions,
+    validate_quiz_questions,
+)
 
 router = APIRouter()
 
@@ -78,12 +82,7 @@ async def get_quiz(
 
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=QuizPrivate)
 async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession):
-    for question in quiz.questions:
-        if not any(answer.is_correct for answer in question.answers):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=QuizErrors.NO_CORRECT_ANSWER,
-            )
+    validate_quiz_questions(quiz.questions)
 
     new_quiz = models.Quiz(
         title=quiz.title,
@@ -122,12 +121,7 @@ async def update_quiz(
         )
 
     if quiz_update.questions:
-        for question in quiz_update.questions:
-            if not any(answer.is_correct for answer in question.answers):
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=QuizErrors.NO_CORRECT_ANSWER,
-                )
+        validate_quiz_questions(quiz_update.questions)
 
     update_data = quiz_update.model_dump(exclude_unset=True)
     for key, value in update_data.items():
