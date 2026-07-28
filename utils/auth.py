@@ -95,7 +95,7 @@ async def get_current_user(token: AccessToken, db: DBSession):
         )
     try:
         user_id_int = int(user_id)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=AuthErrors.INVALID_TOKEN,
@@ -134,12 +134,13 @@ def issue_refresh_token(db: AsyncSession, user_id: int, family_id: str | None = 
 
 
 def set_refresh_cookie(response: Response, token: str):
+    is_prod = settings.env == "PRODUCTION"
     response.set_cookie(
         key=REFRESH_TOKEN_COOKIE_KEY,
         value=token,
         httponly=True,
-        secure=settings.env == "PRODUCTION",
-        samesite="lax",
+        secure=is_prod,
+        samesite="none" if is_prod else "lax",
         max_age=settings.refresh_token_expire_days * 24 * 60 * 60,
     )
 
