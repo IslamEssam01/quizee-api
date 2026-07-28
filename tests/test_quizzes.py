@@ -421,8 +421,9 @@ async def test_start_attempt_with_user(client: AsyncClient):
 
     assert response.status_code == 200
     data = response.json()
+    assert data.keys() == {"id", "quiz"}
 
-    check_quiz_matches(data, user, quiz, True)
+    check_quiz_matches(data["quiz"], user, quiz, True)
 
 
 @pytest.mark.anyio
@@ -440,4 +441,7 @@ async def test_start_attempt_with_taker_name(client: AsyncClient):
 
     assert response.status_code == 200
     data = response.json()
-    check_quiz_matches(data, user, quiz, True)
+    assert data.keys() == {"id", "quiz"}
+    check_quiz_matches(data["quiz"], user, quiz, True)
+
+

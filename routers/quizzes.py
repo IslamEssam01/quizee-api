@@ -14,6 +14,7 @@ from schemas.quiz import (
     QuizPublic,
     QuizUpdate,
     StartAttemptRequest,
+    StartAttemptResponse,
 )
 from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
@@ -158,7 +159,7 @@ async def delete_quiz(quiz_id: int, current_user: CurrentUser, db: DBSession):
     await db.commit()
 
 
-@router.post("/{quiz_id}/start-attempt", response_model=QuizPublic)
+@router.post("/{quiz_id}/start-attempt", response_model=StartAttemptResponse)
 async def start_attempt(
     quiz_id: int,
     db: DBSession,
@@ -192,14 +193,15 @@ async def start_attempt(
             detail=QuizErrors.ATTEMPT_MUST_HAVE_USER_OR_NAME,
         )
 
-    db.add(
-        models.Attempt(
-            quiz_id=quiz.id,
-            user_id=user.id if user else None,
-            quiz_json=QuizAttempt.model_validate(quiz).model_dump(mode="json"),
-            taker_name=request_data.taker_name if request_data else None,
-        )
+    attempt = models.Attempt(
+        quiz_id=quiz.id,
+        user_id=user.id if user else None,
+        quiz_json=QuizAttempt.model_validate(quiz).model_dump(mode="json"),
+        taker_name=request_data.taker_name if request_data else None,
     )
-    await db.commit()
 
-    return quiz
+    db.add(attempt)
+    await db.commit()
+    await db.refresh(attempt)
+
+    return StartAttemptResponse(id=attempt.id, quiz=QuizPublic.model_validate(quiz))

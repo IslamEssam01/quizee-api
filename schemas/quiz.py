@@ -98,3 +98,8 @@ class PaginatedQuizPrivateResponse(PaginatedResponse):
 
 class StartAttemptRequest(BaseModel):
     taker_name: str | None = Field(default=None)
+
+
+class StartAttemptResponse(BaseResponse):
+    id: int
+    quiz: QuizPublic
