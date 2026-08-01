@@ -7,44 +7,39 @@ from schemas.user import UserPrivate, UserPublic
 from utils.enums import QuestionType, Visibility
 
 
-class AnswerCreate(BaseModel):
+class AnswerBase(BaseModel):
     id: int
     text: str = Field(min_length=1)
+
+
+class AnswerCreate(AnswerBase):
     is_correct: bool
 
 
-class AnswerPrivate(BaseResponse):
-    id: int
-    text: str
+class AnswerPrivate(AnswerBase, BaseResponse):
     is_correct: bool
 
 
-class AnswerPublic(BaseResponse):
-    id: int
-    text: str
+class AnswerPublic(AnswerBase, BaseResponse):
+    pass
 
 
-class QuestionCreate(BaseModel):
+class QuestionBase(BaseModel):
     id: int
     text: str = Field(min_length=1)
     type: QuestionType
     position: int = Field(ge=1)
+
+
+class QuestionCreate(QuestionBase):
     answers: list[AnswerCreate] = Field(min_length=2)
 
 
-class QuestionPrivate(BaseResponse):
-    id: int
-    text: str
-    type: QuestionType
-    position: int
+class QuestionPrivate(QuestionBase, BaseResponse):
     answers: list[AnswerPrivate]
 
 
-class QuestionPublic(BaseResponse):
-    id: int
-    text: str
-    type: QuestionType
-    position: int
+class QuestionPublic(QuestionBase, BaseResponse):
     answers: list[AnswerPublic]
 
 
