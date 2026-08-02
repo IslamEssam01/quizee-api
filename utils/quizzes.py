@@ -164,17 +164,29 @@ def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswe
         )
         if not question:
             continue
-        correct_answers_ids = [
-            answer.id for answer in question.answers if answer.is_correct
-        ]
-        if not correct_answers_ids:
+        correct_answers = [answer for answer in question.answers if answer.is_correct]
+        if not correct_answers:
             continue
         if question.grading_mode is GradingMode.ALL_OR_NOTHING:
-            if answer_ids and set(answer_ids) == set(correct_answers_ids):
+            if answer_ids and set(answer_ids) == set(
+                answer.id for answer in correct_answers
+            ):
                 score += question.points
         elif question.grading_mode is GradingMode.PARTIAL_CREDIT:
-            correct_count = len(set(answer_ids) & set(correct_answers_ids))
-            score += (correct_count / len(correct_answers_ids)) * question.points
+            correct_answers_have_points = any(
+                answer.points is not None for answer in correct_answers
+            )
+            if correct_answers_have_points:
+                score += sum(
+                    answer.points or 0
+                    for answer in correct_answers
+                    if answer.id in answer_ids
+                )
+            else:
+                correct_count = len(
+                    set(answer_ids) & set(answer.id for answer in correct_answers)
+                )
+                score += (correct_count / len(correct_answers)) * question.points
 
     return score
 

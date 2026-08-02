@@ -30,3 +30,4 @@ class QuizErrors:
     MISSING_ANSWER_FIELDS = (
         "At least one of 'answer_id' or 'answer_ids' must be provided"
     )
+    INVALID_QUESTION_POINTS = "Answer points must sum up to the question's points value"

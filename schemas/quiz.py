@@ -11,6 +11,7 @@ from utils.error_messages import QuizErrors
 class AnswerBase(BaseModel):
     id: int
     text: str = Field(min_length=1)
+    points: float | None = Field(gt=0, default=None)
 
 
 class AnswerCreate(AnswerBase):
@@ -30,12 +31,22 @@ class QuestionBase(BaseModel):
     text: str = Field(min_length=1)
     type: QuestionType
     position: int = Field(ge=1)
-    points: int = Field(ge=1, default=1)
+    points: float = Field(gt=0, default=1)
     grading_mode: GradingMode = Field(default=GradingMode.ALL_OR_NOTHING)
 
 
 class QuestionCreate(QuestionBase):
     answers: list[AnswerCreate] = Field(min_length=2)
+
+    @model_validator(mode="after")
+    def validate_answers_points(self):
+        total_points = sum(
+            answer.points for answer in self.answers if answer.points is not None
+        )
+        if total_points != 0 and total_points != self.points:
+            raise ValueError(QuizErrors.INVALID_QUESTION_POINTS)
+
+        return self
 
 
 class QuestionPrivate(QuestionBase, BaseResponse):
