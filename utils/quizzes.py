@@ -187,6 +187,10 @@ def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswe
                     set(answer_ids) & set(answer.id for answer in correct_answers)
                 )
                 score += (correct_count / len(correct_answers)) * question.points
+        wrong_answers_count = len(
+            set(answer_ids) - set(answer.id for answer in correct_answers)
+        )
+        score -= wrong_answers_count * question.penalty_per_wrong
 
     return score
 

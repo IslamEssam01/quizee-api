@@ -33,6 +33,7 @@ class QuestionBase(BaseModel):
     position: int = Field(ge=1)
     points: float = Field(gt=0, default=1)
     grading_mode: GradingMode = Field(default=GradingMode.ALL_OR_NOTHING)
+    penalty_per_wrong: float = Field(ge=0, default=0)
 
 
 class QuestionCreate(QuestionBase):
