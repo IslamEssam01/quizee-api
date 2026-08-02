@@ -171,12 +171,18 @@ def calculate_score(
         correct_answers = [answer for answer in question.answers if answer.is_correct]
         if not correct_answers:
             continue
+        wrong_answers_count = len(
+            set(answer_ids) - set(answer.id for answer in correct_answers)
+        )
         if question.grading_mode is GradingMode.ALL_OR_NOTHING:
             if answer_ids and set(answer_ids) == set(
                 answer.id for answer in correct_answers
             ):
                 score += question.points
-        elif question.grading_mode is GradingMode.PARTIAL_CREDIT:
+        elif (
+            question.grading_mode is GradingMode.PARTIAL_CREDIT
+            and wrong_answers_count == 0
+        ):
             correct_answers_have_points = any(
                 answer.points is not None for answer in correct_answers
             )
@@ -191,9 +197,6 @@ def calculate_score(
                     set(answer_ids) & set(answer.id for answer in correct_answers)
                 )
                 score += (correct_count / len(correct_answers)) * question.points
-        wrong_answers_count = len(
-            set(answer_ids) - set(answer.id for answer in correct_answers)
-        )
         score -= wrong_answers_count * question.penalty_per_wrong
 
     if not allow_negative_score:

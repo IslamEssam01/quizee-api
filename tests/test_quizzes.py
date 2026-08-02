@@ -1236,7 +1236,7 @@ async def test_quiz_questions_with_penalty(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
 
-    assert data["score"] == 2.5
+    assert data["score"] == -1.5
 
 
 @pytest.mark.anyio
