@@ -1,4 +1,3 @@
-from collections import Counter
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -17,7 +16,7 @@ from schemas.quiz import (
     QuizPrivate,
     QuizPublic,
 )
-from utils.enums import Visibility
+from utils.enums import GradingMode, Visibility
 from utils.error_messages import QuizErrors
 
 
@@ -170,8 +169,12 @@ def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswe
         ]
         if not correct_answers_ids:
             continue
-        if answer_ids and Counter(answer_ids) == Counter(correct_answers_ids):
-            score += question.points
+        if question.grading_mode is GradingMode.ALL_OR_NOTHING:
+            if answer_ids and set(answer_ids) == set(correct_answers_ids):
+                score += question.points
+        elif question.grading_mode is GradingMode.PARTIAL_CREDIT:
+            correct_count = len(set(answer_ids) & set(correct_answers_ids))
+            score += (correct_count / len(correct_answers_ids)) * question.points
 
     return score
 

@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from schemas.base import BaseResponse, PaginatedResponse
 from schemas.user import UserPrivate, UserPublic
-from utils.enums import QuestionType, Visibility
+from utils.enums import GradingMode, QuestionType, Visibility
 from utils.error_messages import QuizErrors
 
 
@@ -31,6 +31,7 @@ class QuestionBase(BaseModel):
     type: QuestionType
     position: int = Field(ge=1)
     points: int = Field(ge=1, default=1)
+    grading_mode: GradingMode = Field(default=GradingMode.ALL_OR_NOTHING)
 
 
 class QuestionCreate(QuestionBase):
@@ -156,5 +157,5 @@ class SubmitAttemptResponse(BaseResponse):
     taken_at: datetime
     quiz_json: QuizAttempt
     answers_json: list[AttemptAnswer] | None
-    score: int
+    score: float
     passed: bool
