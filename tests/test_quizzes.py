@@ -658,7 +658,9 @@ async def test_submit_attempt_succesfully(client: AsyncClient):
     assert data["user_id"] == user["id"]
     assert data["taker_name"] == None
     # check_quiz_matches(data["quiz_json"], user, quiz, False)
-    assert data["answers_json"] == answers
+    for i in range(len(answers)):
+        assert answers[i]["question_id"] == data["answers_json"][i]["question_id"]
+        assert answers[i]["answer_id"] == data["answers_json"][i]["answer_id"]
     assert data["score"] == score
     assert data["passed"] == True
 
@@ -777,3 +779,135 @@ async def test_quiz_questions_with_points(client: AsyncClient):
     assert data["score"] == 3
 
 
+@pytest.mark.anyio
+async def test_quiz_questions_with_multiple_answers(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    quiz["questions"] = []
+    questions: list[TestQuestion] = [
+        {
+            "text": "question 1",
+            "id": 1,
+            "position": 1,
+            "type": QuestionType.MCQ,
+            "answers": [
+                {"id": 1, "text": "answer 1", "is_correct": True},
+                {"id": 2, "text": "answer 2", "is_correct": False},
+                {"id": 3, "text": "answer 3", "is_correct": True},
+            ],
+        },
+        {
+            "text": "question 2",
+            "id": 2,
+            "position": 2,
+            "type": QuestionType.MCQ,
+            "answers": [
+                {"id": 1, "text": "answer 1", "is_correct": False},
+                {"id": 2, "text": "answer 2", "is_correct": True},
+                {"id": 3, "text": "answer 3", "is_correct": True},
+            ],
+        },
+    ]
+    quiz["questions"] = questions
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+    data = response.json()
+    attempt_id = data["id"]
+
+    answers = [
+        {
+            "question_id": questions[0]["id"],
+            "answer_ids": [
+                questions[0]["answers"][0]["id"],
+                questions[0]["answers"][2]["id"],
+            ],
+        },
+        {
+            "question_id": questions[1]["id"],
+            "answer_id": questions[1]["answers"][1]["id"],
+        },
+    ]
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["score"] == 1
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+    data = response.json()
+    attempt_id = data["id"]
+
+    answers = [
+        {
+            "question_id": questions[0]["id"],
+            "answer_ids": [
+                questions[0]["answers"][1]["id"],
+            ],
+        },
+        {
+            "question_id": questions[1]["id"],
+            "answer_ids": [
+                questions[1]["answers"][1]["id"],
+                questions[1]["answers"][2]["id"],
+            ],
+        },
+    ]
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["score"] == 1
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+    data = response.json()
+    attempt_id = data["id"]
+
+    answers = [
+        {
+            "question_id": questions[0]["id"],
+            "answer_ids": [
+                questions[0]["answers"][0]["id"],
+                questions[0]["answers"][2]["id"],
+            ],
+        },
+        {
+            "question_id": questions[1]["id"],
+            "answer_ids": [
+                questions[1]["answers"][1]["id"],
+                questions[1]["answers"][2]["id"],
+            ],
+        },
+    ]
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["score"] == 2

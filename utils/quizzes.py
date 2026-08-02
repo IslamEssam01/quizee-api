@@ -1,3 +1,4 @@
+from collections import Counter
 from typing import Any
 
 from fastapi import HTTPException, status
@@ -157,22 +158,20 @@ async def get_quizzes_with_options(
 def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswer]):
     score = 0
     for answer in answers:
+        answer_ids = [answer.answer_id] if answer.answer_id else answer.answer_ids or []
         question = next(
             (question for question in questions if question.id == answer.question_id),
             None,
         )
         if not question:
             continue
-        correct_answer = next(
-            (answer for answer in question.answers if answer.is_correct), None
-        )
-        if not correct_answer:
+        correct_answers_ids = [
+            answer.id for answer in question.answers if answer.is_correct
+        ]
+        if not correct_answers_ids:
             continue
-        if correct_answer.id == answer.answer_id:
-            if question.points is not None:
-                score += question.points
-            else:
-                score += 1
+        if answer_ids and Counter(answer_ids) == Counter(correct_answers_ids):
+            score += question.points
 
     return score
 

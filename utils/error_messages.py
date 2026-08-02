@@ -26,3 +26,7 @@ class QuizErrors:
     ATTEMPT_MUST_HAVE_USER_OR_NAME = "An attempt must have a user or a taker name"
     ATTEMPT_NOT_FOUND = "Attempt not found"
     NOT_AUTHORIZED_TO_SUBMIT_ATTEMPT = "Not authorized to submit this attempt"
+    INVALID_ANSWER_FIELDS = "Only one of 'answer_id' or 'answer_ids' should be provided"
+    MISSING_ANSWER_FIELDS = (
+        "At least one of 'answer_id' or 'answer_ids' must be provided"
+    )

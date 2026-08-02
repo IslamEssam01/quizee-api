@@ -1,10 +1,11 @@
 from datetime import datetime
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from schemas.base import BaseResponse, PaginatedResponse
 from schemas.user import UserPrivate, UserPublic
 from utils.enums import QuestionType, Visibility
+from utils.error_messages import QuizErrors
 
 
 class AnswerBase(BaseModel):
@@ -125,7 +126,21 @@ class StartAttemptResponse(BaseResponse):
 
 class AttemptAnswer(BaseModel):
     question_id: int
-    answer_id: int
+    answer_id: int | None = Field(default=None)
+    answer_ids: list[int] | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def verify_answer_fields(self):
+        answer_id = self.answer_id
+        answer_ids = self.answer_ids
+
+        if answer_id is not None and answer_ids is not None:
+            raise ValueError(QuizErrors.INVALID_ANSWER_FIELDS)
+
+        if answer_id is None and answer_ids is None:
+            raise ValueError(QuizErrors.MISSING_ANSWER_FIELDS)
+
+        return self
 
 
 class SubmitAttemptRequest(BaseModel):
