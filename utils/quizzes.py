@@ -202,6 +202,6 @@ def calculate_score(
 
 
 def is_attempt_passed(quiz: QuizAttempt, score: float):
-    total = len(quiz.questions)
+    total = sum(question.points for question in quiz.questions)
 
     return (score / total) * 100 >= quiz.pass_threshold
