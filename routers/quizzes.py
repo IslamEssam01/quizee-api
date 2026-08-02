@@ -114,6 +114,7 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
         pass_threshold=quiz.pass_threshold,
         owner_id=current_user.id,
         questions=[question.model_dump(mode="json") for question in quiz.questions],
+        allow_negative_score=quiz.allow_negative_score,
     )
 
     db.add(new_quiz)
@@ -269,6 +270,7 @@ async def submit_attempt(
                 for question in attempt.quiz_json["questions"]
             ],
             answers=request_data.answers,
+            allow_negative_score=attempt.quiz_json.get("allow_negative_score", True),
         )
 
         passed = is_attempt_passed(QuizAttempt.model_validate(attempt.quiz_json), score)

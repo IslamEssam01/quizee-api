@@ -58,22 +58,6 @@ class QuestionPublic(QuestionBase, BaseResponse):
     answers: list[AnswerPublic]
 
 
-class QuizCreate(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    description: str = Field(min_length=1)
-    visibility: Visibility
-    pass_threshold: int = Field(ge=1, le=100)
-    questions: list[QuestionCreate] = Field(min_length=1)
-
-
-class QuizUpdate(BaseModel):
-    title: str | None = Field(min_length=1, max_length=200, default=None)
-    description: str | None = Field(min_length=1, default=None)
-    visibility: Visibility | None = Field(default=None)
-    pass_threshold: int | None = Field(ge=1, le=100, default=None)
-    questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
-
-
 class QuizAttempt(BaseResponse):
     id: int
     title: str
@@ -82,6 +66,7 @@ class QuizAttempt(BaseResponse):
     pass_threshold: int
     owner_id: int
     questions: list[QuestionPrivate]
+    allow_negative_score: bool = Field(default=True)
 
 
 class AttemptSummary(BaseResponse):
@@ -94,30 +79,45 @@ class AttemptSummary(BaseResponse):
     passed: bool | None
 
 
-class QuizPrivate(BaseResponse):
+class QuizCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    description: str = Field(min_length=1)
+    visibility: Visibility
+    pass_threshold: int = Field(ge=1, le=100)
+    questions: list[QuestionCreate] = Field(min_length=1)
+    allow_negative_score: bool = Field(default=True)
+
+
+class QuizUpdate(BaseModel):
+    title: str | None = Field(min_length=1, max_length=200, default=None)
+    description: str | None = Field(min_length=1, default=None)
+    visibility: Visibility | None = Field(default=None)
+    pass_threshold: int | None = Field(ge=1, le=100, default=None)
+    questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
+    allow_negative_score: bool | None = Field(default=None)
+
+
+class QuizBaseResponse(BaseResponse):
     id: int
     title: str
     description: str
     visibility: Visibility
     pass_threshold: int
     owner_id: int
+    attempts_count: int = 0
+    allow_negative_score: bool = Field(default=True)
+
+
+class QuizPrivate(QuizBaseResponse):
     owner: UserPrivate
     questions: list[QuestionPrivate]
-    attempts_count: int = 0
     pass_rate: float = 0.0
     attempts_summary: list[AttemptSummary] = Field(default_factory=list)
 
 
-class QuizPublic(BaseResponse):
-    id: int
-    title: str
-    description: str
-    visibility: Visibility
-    pass_threshold: int
-    owner_id: int
+class QuizPublic(QuizBaseResponse):
     owner: UserPublic
     questions: list[QuestionPublic]
-    attempts_count: int = 0
 
 
 class PaginatedQuizPublicResponse(PaginatedResponse):

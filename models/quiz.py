@@ -42,6 +42,9 @@ class Quiz(Base):
         default=Visibility.PUBLIC,
     )
     questions: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    allow_negative_score: Mapped[bool] = mapped_column(
+        nullable=False, default=True, server_default="true"
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

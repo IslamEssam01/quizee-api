@@ -154,7 +154,11 @@ async def get_quizzes_with_options(
     )
 
 
-def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswer]):
+def calculate_score(
+    questions: list[QuestionPrivate],
+    answers: list[AttemptAnswer],
+    allow_negative_score: bool = True,
+):
     score = 0
     for answer in answers:
         answer_ids = [answer.answer_id] if answer.answer_id else answer.answer_ids or []
@@ -192,6 +196,8 @@ def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswe
         )
         score -= wrong_answers_count * question.penalty_per_wrong
 
+    if not allow_negative_score:
+        score = max(score, 0)
     return score
 
 
