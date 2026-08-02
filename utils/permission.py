@@ -9,7 +9,7 @@ class Action(StrEnum):
     DELETE = "delete"
 
 
-def can_user_do(user: models.User, action: Action, owner_id: int):
+def can_user_do_for_quiz(user: models.User, action: Action, quiz: models.Quiz):
     # Just check ownership for now
 
-    return user.id == owner_id
+    return user.id == quiz.owner_id

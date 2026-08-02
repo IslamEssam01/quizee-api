@@ -24,7 +24,7 @@ from schemas.quiz import (
 from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
 from utils.error_messages import QuizErrors
-from utils.permission import Action, can_user_do
+from utils.permission import Action, can_user_do_for_quiz
 from utils.quizzes import (
     calculate_pass_rate,
     calculate_score,
@@ -77,7 +77,7 @@ async def get_quiz(
         except:
             pass
 
-    can_view_private = bool(user) and can_user_do(user, Action.VIEW, quiz.owner_id)
+    can_view_private = bool(user) and can_user_do_for_quiz(user, Action.VIEW, quiz)
 
     if quiz.visibility != Visibility.PUBLIC and not can_view_private:
         raise HTTPException(
@@ -138,7 +138,7 @@ async def update_quiz(
             status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
         )
 
-    if not can_user_do(current_user, Action.EDIT, quiz.owner_id):
+    if not can_user_do_for_quiz(current_user, Action.EDIT, quiz):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ,
@@ -167,7 +167,7 @@ async def delete_quiz(quiz_id: int, current_user: CurrentUser, db: DBSession):
             status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
         )
 
-    if not can_user_do(current_user, Action.EDIT, quiz.owner_id):
+    if not can_user_do_for_quiz(current_user, Action.EDIT, quiz):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=QuizErrors.NOT_AUTHORIZED_TO_DELETE_QUIZ,
