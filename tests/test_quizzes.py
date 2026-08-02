@@ -1433,7 +1433,7 @@ async def test_taking_private_quiz_successfully(client: AsyncClient):
 
     response = await client.patch(
         f"/api/quizzes/{quiz_id}/update-access",
-        json={"grant_user_ids": [user2["id"]]},
+        json={"grant_users": [user2["email"]]},
         headers=auth_header(token),
     )
     assert response.status_code == 200
@@ -1468,7 +1468,7 @@ async def test_revoking_private_quiz_access(client: AsyncClient):
 
     response = await client.patch(
         f"/api/quizzes/{quiz_id}/update-access",
-        json={"grant_user_ids": [user2["id"]]},
+        json={"grant_users": [user2["email"]]},
         headers=auth_header(token),
     )
 
@@ -1480,7 +1480,7 @@ async def test_revoking_private_quiz_access(client: AsyncClient):
 
     response = await client.patch(
         f"/api/quizzes/{quiz_id}/update-access",
-        json={"revoke_user_ids": [user2["id"]]},
+        json={"revoke_users": [user2["email"]]},
         headers=auth_header(token),
     )
 

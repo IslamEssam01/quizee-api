@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
 import models
@@ -350,27 +350,59 @@ async def update_quiz_access(
             detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ,
         )
 
-    for user_id in request_data.grant_user_ids:
+    granted_user_ids: list[int] = []
+    revoked_user_ids: list[int] = []
+
+    for user_str in request_data.grant_users:
+        result = await db.execute(
+            select(models.User).where(
+                (func.lower(models.User.username) == user_str.lower())
+                | (func.lower(models.User.email) == user_str.lower())
+            )
+        )
+
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User '{user_str}' not found.",
+            )
+
         existing_access = next(
-            (access for access in quiz.quiz_access if access.user_id == user_id), None
+            (access for access in quiz.quiz_access if access.user_id == user.id), None
         )
         if not existing_access:
             new_access = models.QuizAccess(
-                quiz_id=quiz.id, user_id=user_id, granted_by=current_user.id
+                quiz_id=quiz.id, user_id=user.id, granted_by=current_user.id
             )
             db.add(new_access)
+            granted_user_ids.append(user.id)
 
-    for user_id in request_data.revoke_user_ids:
+    for user_str in request_data.revoke_users:
+        result = await db.execute(
+            select(models.User).where(
+                (func.lower(models.User.username) == user_str.lower())
+                | (func.lower(models.User.email) == user_str.lower())
+            )
+        )
+        user = result.scalars().first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"User '{user_str}' not found.",
+            )
+
         existing_access = next(
-            (access for access in quiz.quiz_access if access.user_id == user_id), None
+            (access for access in quiz.quiz_access if access.user_id == user.id), None
         )
         if existing_access:
             await db.delete(existing_access)
+            revoked_user_ids.append(user.id)
 
     await db.commit()
 
     return UpdateAccessResponse(
         quiz_id=quiz.id,
-        granted_user_ids=request_data.grant_user_ids,
-        revoked_user_ids=request_data.revoke_user_ids,
+        granted_user_ids=granted_user_ids,
+        revoked_user_ids=revoked_user_ids,
     )

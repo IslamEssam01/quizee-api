@@ -188,8 +188,8 @@ class SubmitAttemptResponse(BaseResponse):
 
 
 class UpdateAccessRequest(BaseModel):
-    grant_user_ids: list[int] = Field(default_factory=list)
-    revoke_user_ids: list[int] = Field(default_factory=list)
+    grant_users: list[str] = Field(default_factory=list)
+    revoke_users: list[str] = Field(default_factory=list)
 
 
 class UpdateAccessResponse(BaseResponse):
