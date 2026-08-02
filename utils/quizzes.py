@@ -33,9 +33,7 @@ async def get_attempts_count(db: DBSession, quiz_id: int) -> int:
     return result.scalar() or 0
 
 
-async def get_attempts_count_map(
-    db: DBSession, quiz_ids: list[int]
-) -> dict[int, int]:
+async def get_attempts_count_map(db: DBSession, quiz_ids: list[int]) -> dict[int, int]:
     if not quiz_ids:
         return {}
 
@@ -171,7 +169,10 @@ def calculate_score(questions: list[QuestionPrivate], answers: list[AttemptAnswe
         if not correct_answer:
             continue
         if correct_answer.id == answer.answer_id:
-            score += 1
+            if question.points is not None:
+                score += question.points
+            else:
+                score += 1
 
     return score
 

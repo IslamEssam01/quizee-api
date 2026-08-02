@@ -29,6 +29,7 @@ class QuestionBase(BaseModel):
     text: str = Field(min_length=1)
     type: QuestionType
     position: int = Field(ge=1)
+    points: int = Field(ge=1, default=1)
 
 
 class QuestionCreate(QuestionBase):
