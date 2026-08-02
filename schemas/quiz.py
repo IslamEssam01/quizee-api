@@ -34,6 +34,7 @@ class QuestionBase(BaseModel):
     points: float = Field(gt=0, default=1)
     grading_mode: GradingMode = Field(default=GradingMode.ALL_OR_NOTHING)
     penalty_per_wrong: float = Field(ge=0, default=0)
+    allow_multiple_answers: bool = Field(default=False)
 
 
 class QuestionCreate(QuestionBase):
@@ -46,6 +47,10 @@ class QuestionCreate(QuestionBase):
         )
         if total_points != 0 and total_points != self.points:
             raise ValueError(QuizErrors.INVALID_QUESTION_POINTS)
+
+        correct_answers_count = sum(1 for answer in self.answers if answer.is_correct)
+        if correct_answers_count > 1:
+            self.allow_multiple_answers = True
 
         return self
 
