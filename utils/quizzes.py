@@ -112,6 +112,7 @@ async def get_quizzes_with_options(
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
         )
         .where(*where_filters)
         .order_by(models.Quiz.created_at.desc())

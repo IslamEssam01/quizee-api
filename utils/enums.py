@@ -3,6 +3,7 @@ import enum
 
 class Visibility(enum.StrEnum):
     PUBLIC = "public"
+    PRIVATE = "private"
 
 
 class QuestionType(enum.StrEnum):

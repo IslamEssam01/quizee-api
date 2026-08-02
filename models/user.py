@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from models.attempt import Attempt
     from models.password_reset_token import PasswordResetToken
     from models.quiz import Quiz
+    from models.quiz_access import QuizAccess
     from models.refresh_token import RefreshToken
 
 
@@ -44,3 +45,6 @@ class User(Base):
         back_populates="owner", cascade="all, delete-orphan"
     )
     attempts: Mapped[list["Attempt"]] = relationship(back_populates="user")
+    quiz_access: Mapped[list["QuizAccess"]] = relationship(
+        back_populates="user", foreign_keys="QuizAccess.user_id"
+    )

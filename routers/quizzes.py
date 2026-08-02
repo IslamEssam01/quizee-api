@@ -20,6 +20,8 @@ from schemas.quiz import (
     StartAttemptResponse,
     SubmitAttemptRequest,
     SubmitAttemptResponse,
+    UpdateAccessRequest,
+    UpdateAccessResponse,
 )
 from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
@@ -60,6 +62,7 @@ async def get_quiz(
         select(models.Quiz)
         .options(
             selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
         )
         .where(models.Quiz.id == quiz_id)
     )
@@ -77,7 +80,9 @@ async def get_quiz(
         except:
             pass
 
-    can_view_private = bool(user) and can_user_do_for_quiz(user, Action.VIEW, quiz)
+    can_view_private = bool(user) and (
+        await can_user_do_for_quiz(user, Action.VIEW, quiz, db)
+    )
 
     if quiz.visibility != Visibility.PUBLIC and not can_view_private:
         raise HTTPException(
@@ -120,9 +125,25 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
     db.add(new_quiz)
 
     await db.commit()
-    await db.refresh(new_quiz, attribute_names=["owner"])
+    await db.refresh(new_quiz)
 
-    sort_quiz_questions(new_quiz.questions)
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
+        )
+        .where(models.Quiz.id == new_quiz.id)
+    )
+
+    quiz_db = result.scalars().first()
+
+    if not quiz_db:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    sort_quiz_questions(quiz_db.questions)
 
     return new_quiz
 
@@ -131,14 +152,21 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
 async def update_quiz(
     quiz_id: int, quiz_update: QuizUpdate, current_user: CurrentUser, db: DBSession
 ):
-    result = await db.execute(select(models.Quiz).where(models.Quiz.id == quiz_id))
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
+        )
+        .where(models.Quiz.id == quiz_id)
+    )
     quiz = result.scalars().first()
     if not quiz:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
         )
 
-    if not can_user_do_for_quiz(current_user, Action.EDIT, quiz):
+    if not (await can_user_do_for_quiz(current_user, Action.EDIT, quiz, db)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ,
@@ -152,7 +180,7 @@ async def update_quiz(
         setattr(quiz, key, value)
 
     await db.commit()
-    await db.refresh(quiz, attribute_names=["owner"])
+    await db.refresh(quiz)
 
     sort_quiz_questions(quiz.questions)
     return quiz
@@ -167,7 +195,7 @@ async def delete_quiz(quiz_id: int, current_user: CurrentUser, db: DBSession):
             status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
         )
 
-    if not can_user_do_for_quiz(current_user, Action.EDIT, quiz):
+    if not (await can_user_do_for_quiz(current_user, Action.EDIT, quiz, db)):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=QuizErrors.NOT_AUTHORIZED_TO_DELETE_QUIZ,
@@ -184,7 +212,6 @@ async def start_attempt(
     request_data: StartAttemptRequest | None = None,
     token: OptionalAccessToken = None,
 ):
-    # TODO: have a check for taking private quizzes
     result = await db.execute(
         select(models.Quiz)
         .options(selectinload(models.Quiz.owner))
@@ -209,6 +236,12 @@ async def start_attempt(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=QuizErrors.ATTEMPT_MUST_HAVE_USER_OR_NAME,
+        )
+
+    if not (await can_user_do_for_quiz(user, Action.VIEW, quiz, db)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ,
         )
 
     attempt = models.Attempt(
@@ -288,3 +321,56 @@ async def submit_attempt(
     await db.refresh(attempt)
 
     return attempt
+
+
+@router.patch("/{quiz_id}/update-access", response_model=UpdateAccessResponse)
+async def update_quiz_access(
+    quiz_id: int,
+    request_data: UpdateAccessRequest,
+    current_user: CurrentUser,
+    db: DBSession,
+):
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
+        )
+        .where(models.Quiz.id == quiz_id)
+    )
+    quiz = result.scalars().first()
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    if not (await can_user_do_for_quiz(current_user, Action.EDIT, quiz, db)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_QUIZ,
+        )
+
+    for user_id in request_data.grant_user_ids:
+        existing_access = next(
+            (access for access in quiz.quiz_access if access.user_id == user_id), None
+        )
+        if not existing_access:
+            new_access = models.QuizAccess(
+                quiz_id=quiz.id, user_id=user_id, granted_by=current_user.id
+            )
+            db.add(new_access)
+
+    for user_id in request_data.revoke_user_ids:
+        existing_access = next(
+            (access for access in quiz.quiz_access if access.user_id == user_id), None
+        )
+        if existing_access:
+            await db.delete(existing_access)
+
+    await db.commit()
+
+    return UpdateAccessResponse(
+        quiz_id=quiz.id,
+        granted_user_ids=request_data.grant_user_ids,
+        revoked_user_ids=request_data.revoke_user_ids,
+    )

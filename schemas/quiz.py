@@ -102,6 +102,14 @@ class QuizUpdate(BaseModel):
     allow_negative_score: bool | None = Field(default=None)
 
 
+class QuizAccess(BaseResponse):
+    quiz_id: int
+    user_id: int
+    user: UserPrivate
+    granted_at: datetime
+    granted_by: int
+
+
 class QuizBaseResponse(BaseResponse):
     id: int
     title: str
@@ -118,6 +126,7 @@ class QuizPrivate(QuizBaseResponse):
     questions: list[QuestionPrivate]
     pass_rate: float = 0.0
     attempts_summary: list[AttemptSummary] = Field(default_factory=list)
+    quiz_access: list[QuizAccess] = Field(default_factory=list)
 
 
 class QuizPublic(QuizBaseResponse):
@@ -176,3 +185,14 @@ class SubmitAttemptResponse(BaseResponse):
     answers_json: list[AttemptAnswer] | None
     score: float
     passed: bool
+
+
+class UpdateAccessRequest(BaseModel):
+    grant_user_ids: list[int] = Field(default_factory=list)
+    revoke_user_ids: list[int] = Field(default_factory=list)
+
+
+class UpdateAccessResponse(BaseResponse):
+    quiz_id: int
+    granted_user_ids: list[int] = Field(default_factory=list)
+    revoked_user_ids: list[int] = Field(default_factory=list)

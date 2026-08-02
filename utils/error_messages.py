@@ -31,3 +31,4 @@ class QuizErrors:
         "At least one of 'answer_id' or 'answer_ids' must be provided"
     )
     INVALID_QUESTION_POINTS = "Answer points must sum up to the question's points value"
+    NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ = "Not authorized to take this private quiz"

@@ -5,7 +5,7 @@ import pytest
 from httpx import AsyncClient
 
 from tests.conftest import auth_header, create_test_user, login_user
-from utils.enums import GradingMode, QuestionType
+from utils.enums import GradingMode, QuestionType, Visibility
 from utils.error_messages import QuizErrors
 from utils.quizzes import sort_quiz_questions
 
@@ -101,7 +101,11 @@ def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
     if is_public:
         assert data.keys() == base_keys
     else:
-        assert data.keys() == base_keys | {"pass_rate", "attempts_summary"}
+        assert data.keys() == base_keys | {
+            "pass_rate",
+            "attempts_summary",
+            "quiz_access",
+        }
         assert data["pass_rate"] == 0.0
         assert data["attempts_summary"] == []
 
@@ -1386,3 +1390,103 @@ async def test_quiz_questions_with_no_negative_score(client: AsyncClient):
     data = response.json()
 
     assert data["score"] == 0
+
+
+@pytest.mark.anyio
+async def test_taking_private_quiz_unathorized(client: AsyncClient):
+    user = await create_test_user(client)
+    user2 = await create_test_user(client, email="user2@example.com", username="user2")
+    token, _ = await login_user(client)
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    quiz["visibility"] = Visibility.PRIVATE
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", json={"taker_name": "taker"}
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token2)
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ
+
+
+@pytest.mark.anyio
+async def test_taking_private_quiz_successfully(client: AsyncClient):
+    user = await create_test_user(client)
+    user2 = await create_test_user(client, email="user2@example.com", username="user2")
+    token, _ = await login_user(client)
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    quiz["visibility"] = Visibility.PRIVATE
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.patch(
+        f"/api/quizzes/{quiz_id}/update-access",
+        json={"grant_user_ids": [user2["id"]]},
+        headers=auth_header(token),
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data.keys() == {
+        "quiz_id",
+        "granted_user_ids",
+        "revoked_user_ids",
+    }
+    assert data["quiz_id"] == quiz_id
+    assert data["granted_user_ids"] == [user2["id"]]
+    assert data["revoked_user_ids"] == []
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token2)
+    )
+
+    assert response.status_code == 200
+
+
+@pytest.mark.anyio
+async def test_revoking_private_quiz_access(client: AsyncClient):
+    user = await create_test_user(client)
+    user2 = await create_test_user(client, email="user2@example.com", username="user2")
+    token, _ = await login_user(client)
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    quiz["visibility"] = Visibility.PRIVATE
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.patch(
+        f"/api/quizzes/{quiz_id}/update-access",
+        json={"grant_user_ids": [user2["id"]]},
+        headers=auth_header(token),
+    )
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token2)
+    )
+
+    assert response.status_code == 200
+
+    response = await client.patch(
+        f"/api/quizzes/{quiz_id}/update-access",
+        json={"revoke_user_ids": [user2["id"]]},
+        headers=auth_header(token),
+    )
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token2)
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ
