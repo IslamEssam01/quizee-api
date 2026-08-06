@@ -7,7 +7,11 @@ from sqlalchemy import func, select, update
 
 import models
 from database import DBSession
-from schemas.quiz import PaginatedQuizPrivateResponse, PaginatedQuizPublicResponse
+from schemas.quiz import (
+    PaginatedQuizPrivateResponse,
+    PaginatedQuizPublicResponse,
+    PaginatedUserAttemptResponse,
+)
 from schemas.user import (
     ChangePasswordRequest,
     UserCreate,
@@ -82,6 +86,41 @@ async def get_current_user_quizzes(
         visibility=visibility,
         is_public=False,
     )
+
+
+@router.get("/me/attempts", response_model=PaginatedUserAttemptResponse)
+async def get_current_user_attempts(
+    current_user: CurrentUser,
+    db: DBSession,
+    skip: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 10,
+):
+    result = await db.execute(
+        select(models.Attempt)
+        .where(models.Attempt.user_id == current_user.id)
+        .order_by(models.Attempt.started_at.desc())
+        .offset(skip)
+        .limit(limit)
+    )
+    attempts = result.scalars().all()
+
+    count_result = await db.execute(
+        select(func.count())
+        .select_from(models.Attempt)
+        .where(models.Attempt.user_id == current_user.id)
+    )
+
+    total = count_result.scalar() or 0
+
+    has_more = skip + limit < total
+
+    return {
+        "skip": skip,
+        "limit": limit,
+        "total": total,
+        "has_more": has_more,
+        "attempts": attempts,
+    }
 
 
 @router.get("/{user_id}", response_model=UserPublic)

@@ -195,6 +195,29 @@ class UpdateAttemptResponse(BaseResponse):
     answers_json: list[AttemptAnswer] | None
 
 
+class UserAttempt(BaseResponse):
+    id: int
+    quiz_id: int
+    user_id: int
+    started_at: datetime
+    taken_at: datetime | None
+    quiz_json: PrivateQuizAttempt | None
+    answers_json: list[AttemptAnswer] | None
+    score: float | None
+    passed: bool | None
+
+    @model_validator(mode="after")
+    def validate_quiz_json(self):
+        if not self.taken_at:
+            self.quiz_json = None
+
+        return self
+
+
+class PaginatedUserAttemptResponse(PaginatedResponse):
+    attempts: list[UserAttempt]
+
+
 class SubmitAttemptResponse(BaseResponse):
     id: int
     quiz_id: int
