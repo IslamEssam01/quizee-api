@@ -191,7 +191,7 @@ class UpdateAttemptResponse(BaseResponse):
     user_id: int | None
     taker_name: str | None
     started_at: datetime
-    quiz_json: PrivateQuizAttempt
+    quiz_json: PublicQuizAttempt
     answers_json: list[AttemptAnswer] | None
 
 
