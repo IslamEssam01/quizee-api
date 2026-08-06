@@ -84,7 +84,9 @@ async def create_test_quiz(user: Any):
     return quiz
 
 
-def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
+def check_quiz_matches(
+    data, user, quiz: TestQuiz, is_public: bool = True, exclude_keys: set[str] = set()
+):
     base_keys = {
         "id",
         "title",
@@ -98,6 +100,9 @@ def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
         "allow_negative_score",
     }
 
+    for key in exclude_keys:
+        base_keys.remove(key)
+
     if is_public:
         assert data.keys() == base_keys
     else:
@@ -109,7 +114,8 @@ def check_quiz_matches(data, user, quiz: TestQuiz, is_public: bool = True):
         assert data["pass_rate"] == 0.0
         assert data["attempts_summary"] == []
 
-    assert data["attempts_count"] == 0
+    if "attempts_count" in base_keys:
+        assert data["attempts_count"] == 0
 
     assert isinstance(data["questions"], list)
     assert data["title"] == quiz["title"]
@@ -519,7 +525,9 @@ async def test_start_attempt_with_user(client: AsyncClient):
     data = response.json()
     assert data.keys() == {"id", "quiz"}
 
-    check_quiz_matches(data["quiz"], user, quiz, True)
+    check_quiz_matches(
+        data["quiz"], user, quiz, True, exclude_keys={"attempts_count", "owner"}
+    )
 
 
 @pytest.mark.anyio
@@ -538,7 +546,9 @@ async def test_start_attempt_with_taker_name(client: AsyncClient):
     assert response.status_code == 200
     data = response.json()
     assert data.keys() == {"id", "quiz"}
-    check_quiz_matches(data["quiz"], user, quiz, True)
+    check_quiz_matches(
+        data["quiz"], user, quiz, True, exclude_keys={"attempts_count", "owner"}
+    )
 
 
 @pytest.mark.anyio
@@ -1490,3 +1500,220 @@ async def test_revoking_private_quiz_access(client: AsyncClient):
 
     assert response.status_code == 403
     assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ
+
+
+@pytest.mark.anyio
+async def test_resume_unknown_attempt(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    response = await client.post(
+        "/api/quizzes/resume-attempt/999", headers=auth_header(token)
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.ATTEMPT_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_resume_another_user_attempt(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@exampl.com", username="user2")
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token2)
+    )
+
+    attempt_id = response.json()["id"]
+
+    response = await client.post(
+        f"/api/quizzes/resume-attempt/{attempt_id}", headers=auth_header(token)
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_RESUME_ATTEMPT
+
+
+@pytest.mark.anyio
+async def test_resume_attempt(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@test.com", username="user 2")
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt",
+        headers=auth_header(token2),
+    )
+
+    attempt_id = response.json()["id"]
+
+    response = await client.post(
+        f"/api/quizzes/resume-attempt/{attempt_id}",
+        headers=auth_header(token2),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data.keys() == {"id", "quiz"}
+
+    check_quiz_matches(
+        data["quiz"], user, quiz, True, exclude_keys={"attempts_count", "owner"}
+    )
+
+
+@pytest.mark.anyio
+async def test_update_unknown_attempt(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    response = await client.patch(
+        "/api/quizzes/update-attempt/999", headers=auth_header(token)
+    )
+    assert response.status_code == 404
+    assert response.json()["detail"] == QuizErrors.ATTEMPT_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_update_another_user_attempt(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@exampl.com", username="user2")
+    token2, _ = await login_user(client, email=user2["email"])
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token2)
+    )
+
+    attempt_id = response.json()["id"]
+
+    response = await client.patch(
+        f"/api/quizzes/update-attempt/{attempt_id}", headers=auth_header(token)
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_UPDATE_ATTEMPT
+
+
+@pytest.mark.anyio
+async def test_update_attempt_succesfully(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+    data = response.json()
+    attempt_id = data["id"]
+
+    get_correct_answer = lambda question: [
+        answer for answer in question["answers"] if answer["is_correct"]
+    ][0]
+
+    answers = []
+    score = 0
+    for question in quiz["questions"][: len(quiz["questions"]) // 2 + 1]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_correct_answer(question)["id"],
+            }
+        )
+        score += 1
+
+    response = await client.patch(
+        f"/api/quizzes/update-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data.keys() == {
+        "id",
+        "quiz_id",
+        "user_id",
+        "taker_name",
+        "quiz_json",
+        "answers_json",
+        "started_at",
+    }
+
+    assert data["id"] == attempt_id
+    assert data["quiz_id"] == quiz_id
+    assert data["user_id"] == user["id"]
+    assert data["taker_name"] == None
+    # check_quiz_matches(data["quiz_json"], user, quiz, False)
+    for i in range(len(answers)):
+        assert answers[i]["question_id"] == data["answers_json"][i]["question_id"]
+        assert answers[i]["answer_id"] == data["answers_json"][i]["answer_id"]
+
+
+@pytest.mark.anyio
+async def test_update_submitted_attempt_succesfully(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+    data = response.json()
+    attempt_id = data["id"]
+
+    get_correct_answer = lambda question: [
+        answer for answer in question["answers"] if answer["is_correct"]
+    ][0]
+
+    get_wrong_answer = lambda question: [
+        answer for answer in question["answers"] if not answer["is_correct"]
+    ][0]
+
+    answers = []
+    score = 0
+    for question in quiz["questions"][: len(quiz["questions"]) // 2 + 1]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_correct_answer(question)["id"],
+            }
+        )
+        score += 1
+
+    for question in quiz["questions"][len(quiz["questions"]) // 2 + 1 :]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_wrong_answer(question)["id"],
+            }
+        )
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    response = await client.patch(
+        f"/api/quizzes/update-attempt/{attempt_id}",
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == QuizErrors.ATTEMPT_ALREADY_SUBMITTED

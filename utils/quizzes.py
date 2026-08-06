@@ -10,9 +10,9 @@ from schemas.quiz import (
     AttemptAnswer,
     PaginatedQuizPrivateResponse,
     PaginatedQuizPublicResponse,
+    PrivateQuizAttempt,
     QuestionCreate,
     QuestionPrivate,
-    QuizAttempt,
     QuizPrivate,
     QuizPublic,
 )
@@ -205,7 +205,7 @@ def calculate_score(
     return score
 
 
-def is_attempt_passed(quiz: QuizAttempt, score: float):
+def is_attempt_passed(quiz: PrivateQuizAttempt, score: float):
     total = sum(question.points for question in quiz.questions)
 
     return (score / total) * 100 >= quiz.pass_threshold

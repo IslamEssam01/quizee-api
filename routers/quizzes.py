@@ -8,20 +8,22 @@ from sqlalchemy.orm import selectinload
 import models
 from database import DBSession
 from schemas.quiz import (
+    AttemptResponse,
     AttemptSummary,
     PaginatedQuizPublicResponse,
+    PrivateQuizAttempt,
+    PublicQuizAttempt,
     QuestionPrivate,
-    QuizAttempt,
     QuizCreate,
     QuizPrivate,
     QuizPublic,
     QuizUpdate,
     StartAttemptRequest,
-    StartAttemptResponse,
     SubmitAttemptRequest,
     SubmitAttemptResponse,
     UpdateAccessRequest,
     UpdateAccessResponse,
+    UpdateAttemptResponse,
 )
 from utils.auth import CurrentUser, OptionalAccessToken, get_current_user
 from utils.enums import Visibility
@@ -205,7 +207,7 @@ async def delete_quiz(quiz_id: int, current_user: CurrentUser, db: DBSession):
     await db.commit()
 
 
-@router.post("/{quiz_id}/start-attempt", response_model=StartAttemptResponse)
+@router.post("/{quiz_id}/start-attempt", response_model=AttemptResponse)
 async def start_attempt(
     quiz_id: int,
     db: DBSession,
@@ -247,7 +249,7 @@ async def start_attempt(
     attempt = models.Attempt(
         quiz_id=quiz.id,
         user_id=user.id if user else None,
-        quiz_json=QuizAttempt.model_validate(quiz).model_dump(mode="json"),
+        quiz_json=PrivateQuizAttempt.model_validate(quiz).model_dump(mode="json"),
         taker_name=request_data.taker_name if request_data else None,
     )
 
@@ -255,7 +257,89 @@ async def start_attempt(
     await db.commit()
     await db.refresh(attempt)
 
-    return StartAttemptResponse(id=attempt.id, quiz=QuizPublic.model_validate(quiz))
+    return AttemptResponse(id=attempt.id, quiz=PublicQuizAttempt.model_validate(quiz))
+
+
+@router.post("/resume-attempt/{attempt_id}", response_model=AttemptResponse)
+async def resume_attempt(
+    attempt_id: int,
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    result = await db.execute(
+        select(models.Attempt).where(models.Attempt.id == attempt_id)
+    )
+    attempt = result.scalars().first()
+    if not attempt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.ATTEMPT_NOT_FOUND
+        )
+
+    if not attempt.user_id or attempt.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_RESUME_ATTEMPT,
+        )
+
+    quiz_json = attempt.quiz_json
+
+    return AttemptResponse(
+        id=attempt.id, quiz=PublicQuizAttempt.model_validate(quiz_json)
+    )
+
+
+@router.patch("/update-attempt/{attempt_id}", response_model=UpdateAttemptResponse)
+async def update_attempt(
+    attempt_id: int,
+    db: DBSession,
+    request_data: SubmitAttemptRequest | None = None,
+    token: OptionalAccessToken = None,
+):
+    result = await db.execute(
+        select(models.Attempt).where(models.Attempt.id == attempt_id)
+    )
+    attempt = result.scalars().first()
+
+    if not attempt:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.ATTEMPT_NOT_FOUND
+        )
+
+    if attempt.taken_at:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=QuizErrors.ATTEMPT_ALREADY_SUBMITTED,
+        )
+
+    user = None
+    if token:
+        try:
+            user = await get_current_user(token, db)
+        except:
+            pass
+
+    if attempt.user_id and (not user or not user.id == attempt.user_id):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_UPDATE_ATTEMPT,
+        )
+
+    if not attempt.quiz_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    if request_data:
+        attempt.answers_json = (
+            [answer.model_dump(mode="json") for answer in request_data.answers]
+            if request_data
+            else None
+        )
+
+    await db.commit()
+    await db.refresh(attempt)
+
+    return attempt
 
 
 @router.post("/submit-attempt/{attempt_id}", response_model=SubmitAttemptResponse)
@@ -306,7 +390,9 @@ async def submit_attempt(
             allow_negative_score=attempt.quiz_json.get("allow_negative_score", True),
         )
 
-        passed = is_attempt_passed(QuizAttempt.model_validate(attempt.quiz_json), score)
+        passed = is_attempt_passed(
+            PrivateQuizAttempt.model_validate(attempt.quiz_json), score
+        )
 
     attempt.score = score
     attempt.passed = passed

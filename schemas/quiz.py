@@ -63,7 +63,18 @@ class QuestionPublic(QuestionBase, BaseResponse):
     answers: list[AnswerPublic]
 
 
-class QuizAttempt(BaseResponse):
+class PublicQuizAttempt(BaseResponse):
+    id: int
+    title: str
+    description: str
+    visibility: Visibility
+    pass_threshold: int
+    owner_id: int
+    questions: list[QuestionPublic]
+    allow_negative_score: bool = Field(default=True)
+
+
+class PrivateQuizAttempt(BaseResponse):
     id: int
     title: str
     description: str
@@ -146,9 +157,9 @@ class StartAttemptRequest(BaseModel):
     taker_name: str | None = Field(default=None)
 
 
-class StartAttemptResponse(BaseResponse):
+class AttemptResponse(BaseResponse):
     id: int
-    quiz: QuizPublic
+    quiz: PublicQuizAttempt
 
 
 class AttemptAnswer(BaseModel):
@@ -174,6 +185,16 @@ class SubmitAttemptRequest(BaseModel):
     answers: list[AttemptAnswer]
 
 
+class UpdateAttemptResponse(BaseResponse):
+    id: int
+    quiz_id: int
+    user_id: int | None
+    taker_name: str | None
+    started_at: datetime
+    quiz_json: PrivateQuizAttempt
+    answers_json: list[AttemptAnswer] | None
+
+
 class SubmitAttemptResponse(BaseResponse):
     id: int
     quiz_id: int
@@ -181,7 +202,7 @@ class SubmitAttemptResponse(BaseResponse):
     taker_name: str | None
     started_at: datetime
     taken_at: datetime
-    quiz_json: QuizAttempt
+    quiz_json: PrivateQuizAttempt
     answers_json: list[AttemptAnswer] | None
     score: float
     passed: bool
