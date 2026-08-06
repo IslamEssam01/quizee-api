@@ -18,7 +18,10 @@ async def can_user_do_for_quiz(
         return True
 
     if action is Action.VIEW:
-        if quiz.visibility == Visibility.PUBLIC:
+        if (
+            quiz.visibility == Visibility.PUBLIC
+            or quiz.visibility == Visibility.PUBLIC_WITH_LINK
+        ):
             return True
         elif quiz.visibility == Visibility.PRIVATE:
             if user is None:

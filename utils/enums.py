@@ -4,6 +4,7 @@ import enum
 class Visibility(enum.StrEnum):
     PUBLIC = "public"
     PRIVATE = "private"
+    PUBLIC_WITH_LINK = "public_with_link"
 
 
 class QuestionType(enum.StrEnum):
