@@ -37,3 +37,5 @@ class QuizErrors:
     ATTEMPT_ALREADY_SUBMITTED = (
         "This attempt has already been submitted and cannot be updated"
     )
+    INVALID_GRADE_TIERS = "Grade tiers thresholds must be between 0 and 100"
+    INVALID_GRADE_TIER_NAME = "Grade tier names must be 20 characters or less"

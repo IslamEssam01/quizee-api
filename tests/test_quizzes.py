@@ -36,6 +36,7 @@ class TestQuiz(TypedDict):
     pass_threshold: int
     questions: list[TestQuestion]
     allow_negative_score: NotRequired[bool]
+    grade_tiers: NotRequired[dict[str, int]]
 
 
 async def create_test_quiz(user: Any):
@@ -98,6 +99,7 @@ def check_quiz_matches(
         "pass_threshold",
         "attempts_count",
         "allow_negative_score",
+        "grade_tiers",
     }
 
     for key in exclude_keys:
@@ -670,6 +672,7 @@ async def test_submit_attempt_succesfully(client: AsyncClient):
         "taken_at",
         "score",
         "passed",
+        "grade",
     }
 
     assert data["id"] == attempt_id
@@ -1717,3 +1720,115 @@ async def test_update_submitted_attempt_succesfully(client: AsyncClient):
 
     assert response.status_code == 400
     assert response.json()["detail"] == QuizErrors.ATTEMPT_ALREADY_SUBMITTED
+
+
+@pytest.mark.anyio
+async def test_submit_attempt_with_grade_tiers(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    quiz = await create_test_quiz(user)
+    quiz["grade_tiers"] = {
+        "A": 90,
+        "B": 80,
+        "C": 60,
+        "F": 0,
+    }
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    data = response.json()
+    quiz_id = data["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+    data = response.json()
+    attempt_id = data["id"]
+
+    get_correct_answer = lambda question: [
+        answer for answer in question["answers"] if answer["is_correct"]
+    ][0]
+
+    get_wrong_answer = lambda question: [
+        answer for answer in question["answers"] if not answer["is_correct"]
+    ][0]
+
+    answers = []
+
+    for question in quiz["questions"][: len(quiz["questions"]) // 2 + 1]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_correct_answer(question)["id"],
+            }
+        )
+
+    for question in quiz["questions"][len(quiz["questions"]) // 2 + 1 :]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_wrong_answer(question)["id"],
+            }
+        )
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["score"] == 2
+    assert data["grade"] == "C"
+
+    answers = []
+    for question in quiz["questions"]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_correct_answer(question)["id"],
+            }
+        )
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+
+    attempt_id = response.json()["id"]
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["score"] == 3
+    assert data["grade"] == "A"
+
+    answers = []
+    for question in quiz["questions"]:
+        answers.append(
+            {
+                "question_id": question["id"],
+                "answer_id": get_wrong_answer(question)["id"],
+            }
+        )
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/start-attempt", headers=auth_header(token)
+    )
+
+    attempt_id = response.json()["id"]
+
+    response = await client.post(
+        f"/api/quizzes/submit-attempt/{attempt_id}",
+        json={"answers": answers},
+        headers=auth_header(token),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["score"] == 0
+    assert data["grade"] == "F"

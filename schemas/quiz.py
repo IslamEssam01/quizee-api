@@ -63,26 +63,23 @@ class QuestionPublic(QuestionBase, BaseResponse):
     answers: list[AnswerPublic]
 
 
-class PublicQuizAttempt(BaseResponse):
+class QuizAttemptBase(BaseResponse):
     id: int
     title: str
     description: str
     visibility: Visibility
     pass_threshold: int
     owner_id: int
+    allow_negative_score: bool = Field(default=True)
+    grade_tiers: dict[str, int] | None = Field(default=None)
+
+
+class PublicQuizAttempt(QuizAttemptBase):
     questions: list[QuestionPublic]
-    allow_negative_score: bool = Field(default=True)
 
 
-class PrivateQuizAttempt(BaseResponse):
-    id: int
-    title: str
-    description: str
-    visibility: Visibility
-    pass_threshold: int
-    owner_id: int
+class PrivateQuizAttempt(QuizAttemptBase):
     questions: list[QuestionPrivate]
-    allow_negative_score: bool = Field(default=True)
 
 
 class AttemptSummary(BaseResponse):
@@ -102,6 +99,19 @@ class QuizCreate(BaseModel):
     pass_threshold: int = Field(ge=1, le=100)
     questions: list[QuestionCreate] = Field(min_length=1)
     allow_negative_score: bool = Field(default=True)
+    grade_tiers: dict[str, int] | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def validate_grade_tiers(self):
+        if self.grade_tiers:
+            if any(len(grade) > 20 for grade in self.grade_tiers.keys()):
+                raise ValueError(QuizErrors.INVALID_GRADE_TIER_NAME)
+            if not all(
+                0 <= threshold <= 100 for threshold in self.grade_tiers.values()
+            ):
+                raise ValueError(QuizErrors.INVALID_GRADE_TIERS)
+
+        return self
 
 
 class QuizUpdate(BaseModel):
@@ -111,6 +121,19 @@ class QuizUpdate(BaseModel):
     pass_threshold: int | None = Field(ge=1, le=100, default=None)
     questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
     allow_negative_score: bool | None = Field(default=None)
+    grade_tiers: dict[str, int] | None = Field(default=None)
+
+    @model_validator(mode="after")
+    def validate_grade_tiers(self):
+        if self.grade_tiers:
+            if any(len(grade) > 20 for grade in self.grade_tiers.keys()):
+                raise ValueError(QuizErrors.INVALID_GRADE_TIER_NAME)
+            if not all(
+                0 <= threshold <= 100 for threshold in self.grade_tiers.values()
+            ):
+                raise ValueError(QuizErrors.INVALID_GRADE_TIERS)
+
+        return self
 
 
 class QuizAccess(BaseResponse):
@@ -130,6 +153,7 @@ class QuizBaseResponse(BaseResponse):
     owner_id: int
     attempts_count: int = 0
     allow_negative_score: bool = Field(default=True)
+    grade_tiers: dict[str, int] | None = Field(default=None)
 
 
 class QuizPrivate(QuizBaseResponse):
@@ -229,6 +253,7 @@ class SubmitAttemptResponse(BaseResponse):
     answers_json: list[AttemptAnswer] | None
     score: float
     passed: bool
+    grade: str | None = Field(default=None)
 
 
 class UpdateAccessRequest(BaseModel):

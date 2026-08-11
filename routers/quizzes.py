@@ -122,6 +122,7 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
         owner_id=current_user.id,
         questions=[question.model_dump(mode="json") for question in quiz.questions],
         allow_negative_score=quiz.allow_negative_score,
+        grade_tiers=quiz.grade_tiers,
     )
 
     db.add(new_quiz)
@@ -402,6 +403,16 @@ async def submit_attempt(
         if request_data
         else None
     )
+    if attempt.quiz_json.get("grade_tiers", None):
+        total_points = sum(
+            question["points"] for question in attempt.quiz_json["questions"]
+        )
+        for grade, threshold in sorted(
+            attempt.quiz_json["grade_tiers"].items(), key=lambda x: x[1], reverse=True
+        ):
+            if (score / total_points) * 100 >= threshold:
+                attempt.grade = grade
+                break
 
     await db.commit()
     await db.refresh(attempt)

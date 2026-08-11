@@ -46,6 +46,7 @@ class Quiz(Base):
     allow_negative_score: Mapped[bool] = mapped_column(
         nullable=False, default=True, server_default="true"
     )
+    grade_tiers: Mapped[dict[str, int] | None] = mapped_column(JSONB, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
