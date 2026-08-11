@@ -6,13 +6,11 @@ from sqlalchemy.orm import selectinload
 
 import models
 from database import DBSession
+from schemas.attempt import AttemptQuizPrivate, SubmitAttemptAnswer
+from schemas.question import QuestionCreate, QuestionPrivate
 from schemas.quiz import (
-    AttemptAnswer,
     PaginatedQuizPrivateResponse,
     PaginatedQuizPublicResponse,
-    PrivateQuizAttempt,
-    QuestionCreate,
-    QuestionPrivate,
     QuizPrivate,
     QuizPublic,
 )
@@ -157,7 +155,7 @@ async def get_quizzes_with_options(
 
 def calculate_score(
     questions: list[QuestionPrivate],
-    answers: list[AttemptAnswer],
+    answers: list[SubmitAttemptAnswer],
     allow_negative_score: bool = True,
 ):
     score = 0
@@ -205,7 +203,7 @@ def calculate_score(
     return score
 
 
-def is_attempt_passed(quiz: PrivateQuizAttempt, score: float):
+def is_attempt_passed(quiz: AttemptQuizPrivate, score: float):
     total = sum(question.points for question in quiz.questions)
 
     return (score / total) * 100 >= quiz.pass_threshold

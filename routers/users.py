@@ -7,11 +7,8 @@ from sqlalchemy import func, select, update
 
 import models
 from database import DBSession
-from schemas.quiz import (
-    PaginatedQuizPrivateResponse,
-    PaginatedQuizPublicResponse,
-    PaginatedUserAttemptResponse,
-)
+from schemas.attempt import PaginatedUserAttemptResponse
+from schemas.quiz import PaginatedQuizPrivateResponse, PaginatedQuizPublicResponse
 from schemas.user import (
     ChangePasswordRequest,
     UserCreate,
