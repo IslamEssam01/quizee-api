@@ -1,3 +1,5 @@
+import random
+from copy import deepcopy
 from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
@@ -119,6 +121,8 @@ async def create_quiz(quiz: QuizCreate, current_user: CurrentUser, db: DBSession
         questions=[question.model_dump(mode="json") for question in quiz.questions],
         allow_negative_score=quiz.allow_negative_score,
         grade_tiers=quiz.grade_tiers,
+        randomize_questions=quiz.randomize_questions,
+        randomize_answers=quiz.randomize_answers,
     )
 
     db.add(new_quiz)
@@ -221,9 +225,6 @@ async def start_attempt(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
         )
-
-    sort_quiz_questions(quiz.questions)
-
     user: models.User | None = None
     if token:
         try:
@@ -242,6 +243,18 @@ async def start_attempt(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=QuizErrors.NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ,
         )
+
+    quiz = deepcopy(quiz)
+
+    if quiz.randomize_questions:
+        random.shuffle(quiz.questions)
+    else:
+        sort_quiz_questions(quiz.questions)
+
+    if quiz.randomize_answers:
+        for question in quiz.questions:
+            if "answers" in question and isinstance(question["answers"], list):
+                random.shuffle(question["answers"])
 
     attempt = models.Attempt(
         quiz_id=quiz.id,

@@ -26,6 +26,8 @@ class QuizCreate(BaseModel):
     questions: list[QuestionCreate] = Field(min_length=1)
     allow_negative_score: bool = Field(default=True)
     grade_tiers: dict[str, int] | None = Field(default=None)
+    randomize_questions: bool = Field(default=False)
+    randomize_answers: bool = Field(default=False)
 
     @model_validator(mode="after")
     def validate_grade_tiers(self):
@@ -48,6 +50,8 @@ class QuizUpdate(BaseModel):
     questions: list[QuestionCreate] | None = Field(min_length=1, default=None)
     allow_negative_score: bool | None = Field(default=None)
     grade_tiers: dict[str, int] | None = Field(default=None)
+    randomize_questions: bool | None = Field(default=None)
+    randomize_answers: bool | None = Field(default=None)
 
     @model_validator(mode="after")
     def validate_grade_tiers(self):
@@ -72,6 +76,8 @@ class QuizBaseResponse(BaseResponse):
     attempts_count: int = 0
     allow_negative_score: bool = Field(default=True)
     grade_tiers: dict[str, int] | None = Field(default=None)
+    randomize_questions: bool = Field(default=False)
+    randomize_answers: bool = Field(default=False)
 
 
 class QuizPrivate(QuizBaseResponse):

@@ -100,6 +100,8 @@ def check_quiz_matches(
         "attempts_count",
         "allow_negative_score",
         "grade_tiers",
+        "randomize_questions",
+        "randomize_answers",
     }
 
     for key in exclude_keys:
