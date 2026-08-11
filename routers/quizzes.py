@@ -414,6 +414,13 @@ async def submit_attempt(
                 attempt.grade = grade
                 break
 
+        if attempt.grade is None:
+            # if all loops fail, assign the lowest grade because of negative scores
+            attempt.grade = min(
+                attempt.quiz_json["grade_tiers"],
+                key=attempt.quiz_json["grade_tiers"].get,
+            )
+
     await db.commit()
     await db.refresh(attempt)
 
