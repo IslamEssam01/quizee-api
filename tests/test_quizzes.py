@@ -480,3 +480,42 @@ async def test_delete_quiz_successfully(client: AsyncClient):
 
     assert response.status_code == 404
     assert response.json()["detail"] == QuizErrors.QUIZ_NOT_FOUND
+
+
+@pytest.mark.anyio
+async def test_duplicate_quiz_unathorized(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+    user2 = await create_test_user(client, email="user2@example.com", username="user2")
+    token2, _ = await login_user(client, email=user2["email"])
+
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    quiz_id = response.json()["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/duplicate",
+        headers=auth_header(token2),
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == QuizErrors.NOT_AUTHORIZED_TO_DUPLICATE_QUIZ
+
+
+@pytest.mark.anyio
+async def test_duplicate_quiz_successfully(client: AsyncClient):
+    user = await create_test_user(client)
+    token, _ = await login_user(client)
+
+    quiz = await create_test_quiz(user)
+    response = await client.post("/api/quizzes", json=quiz, headers=auth_header(token))
+    quiz_id = response.json()["id"]
+
+    response = await client.post(
+        f"/api/quizzes/{quiz_id}/duplicate",
+        headers=auth_header(token),
+    )
+    assert response.status_code == 201
+    data = response.json()
+    new_quiz = copy.deepcopy(quiz)
+    new_quiz["title"] = f"Copy of {quiz['title']}"
+    check_quiz_matches(data, user, new_quiz, False)

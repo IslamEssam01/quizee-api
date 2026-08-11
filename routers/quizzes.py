@@ -355,4 +355,67 @@ async def update_quiz_access(
     )
 
 
+@router.post(
+    "/{quiz_id}/duplicate",
+    response_model=QuizPrivate,
+    status_code=status.HTTP_201_CREATED,
+)
+async def duplicate_quiz(
+    quiz_id: int,
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
+        )
+        .where(models.Quiz.id == quiz_id)
+    )
+    quiz = result.scalars().first()
+    if not quiz:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=QuizErrors.QUIZ_NOT_FOUND
+        )
+
+    if not (await can_user_do_for_quiz(current_user, Action.DUPLICATE, quiz, db)):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=QuizErrors.NOT_AUTHORIZED_TO_DUPLICATE_QUIZ,
+        )
+
+    new_quiz = models.Quiz(
+        title=f"Copy of {quiz.title}",
+        description=quiz.description,
+        visibility=quiz.visibility,
+        pass_threshold=quiz.pass_threshold,
+        owner_id=current_user.id,
+        questions=quiz.questions,
+        allow_negative_score=quiz.allow_negative_score,
+        grade_tiers=quiz.grade_tiers,
+        randomize_questions=quiz.randomize_questions,
+        randomize_answers=quiz.randomize_answers,
+    )
+
+    db.add(new_quiz)
+    await db.commit()
+    await db.refresh(new_quiz)
+
+    sort_quiz_questions(new_quiz.questions)
+
+    result = await db.execute(
+        select(models.Quiz)
+        .options(
+            selectinload(models.Quiz.owner),
+            selectinload(models.Quiz.quiz_access).selectinload(models.QuizAccess.user),
+        )
+        .where(models.Quiz.id == new_quiz.id)
+    )
+
+    quiz_db = result.scalars().first()
+
+    return quiz_db
+
+
 router.include_router(attempts.router, prefix="/attempts", tags=["Attempts"])

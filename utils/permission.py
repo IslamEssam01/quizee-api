@@ -9,6 +9,7 @@ class Action(StrEnum):
     VIEW = "view"
     EDIT = "edit"
     DELETE = "delete"
+    DUPLICATE = "duplicate"
 
 
 async def can_user_do_for_quiz(

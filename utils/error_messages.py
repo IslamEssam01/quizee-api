@@ -32,6 +32,7 @@ class QuizErrors:
     )
     INVALID_QUESTION_POINTS = "Answer points must sum up to the question's points value"
     NOT_AUTHORIZED_TO_TAKE_PRIVATE_QUIZ = "Not authorized to take this private quiz"
+    NOT_AUTHORIZED_TO_DUPLICATE_QUIZ = "Not authorized to duplicate this quiz"
     NOT_AUTHORIZED_TO_RESUME_ATTEMPT = "Not authorized to resume this attempt"
     NOT_AUTHORIZED_TO_UPDATE_ATTEMPT = "Not authorized to update this attempt"
     ATTEMPT_ALREADY_SUBMITTED = (
