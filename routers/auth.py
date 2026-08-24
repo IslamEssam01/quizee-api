@@ -37,7 +37,7 @@ from utils.auth import (
     set_refresh_cookie,
     verify_password,
 )
-from utils.email import send_reset_password_email
+from utils.email import send_reset_password_email, send_theft_notification_email
 from utils.error_messages import AuthErrors
 from utils.success_messages import AuthMessages
 
@@ -84,6 +84,7 @@ async def login(
 async def refresh_token(
     db: DBSession,
     response: Response,
+    background_tasks: BackgroundTasks,
     request_data: RefreshTokenRequest | None = None,
     refresh_token_cookie: Annotated[str | None, Cookie(alias="refresh_token")] = None,
     x_client_type: Annotated[str, Header()] = "web",
@@ -128,12 +129,22 @@ async def refresh_token(
             .where(models.RefreshToken.family_id == refresh_token_db.family_id)
             .values(revoked_at=datetime.now(UTC))
         )
+        result = await db.execute(
+            select(models.User).where(models.User.id == refresh_token_db.user_id)
+        )
+        user = result.scalars().first()
+        if user:
+            background_tasks.add_task(
+                send_theft_notification_email,
+                email_to=user.email,
+                username=user.username,
+                time=datetime.now(UTC),
+            )
         await db.commit()
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=AuthErrors.INVALID_TOKEN,
         )
-        # TODO: send an email to the user signaling there might be theft
 
     user_id = refresh_token_db.user_id
 

@@ -3,7 +3,6 @@ from httpx import AsyncClient
 from pydantic import validate_email
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import models
 from tests.conftest import (
     auth_header,
     clean_db,
