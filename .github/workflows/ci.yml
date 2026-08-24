@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: quizee
+          POSTGRES_PASSWORD: quizee
+          POSTGRES_DB: quizee_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DB_URL: postgresql+psycopg://quizee:quizee@localhost:5432/quizee_test
+      TEST_DB_URL: postgresql+psycopg://quizee:quizee@localhost:5432/quizee_test
+      SECRET_KEY: ci-test-secret-key
+      FRONTEND_URL: http://localhost:3000
+      ENV: TEST
+      MAIL_FROM: example@example.com
+      SMTP_SERVER: localhost
+      SMTP_PORT: 587
+      SMTP_USERNAME: username
+      SMTP_PASSWORD: password
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run tests
+        run: uv run pytest
